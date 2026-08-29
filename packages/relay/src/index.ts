@@ -21,6 +21,16 @@ export default {
 
     const path = new URL(request.url).pathname.replace(/\/+$/, "") || "/";
 
+    // The root is a common landing spot for a human poking at the URL. Say what
+    // this is rather than a bare 404, without revealing anything about channels.
+    if (path === "/") {
+      return json({
+        service: "copyme-relay",
+        note: "This is an API, not a website. It stores end-to-end encrypted clipboard entries and cannot read them.",
+        endpoints: ["/healthz", "/v1/channels/{channelId}/entries"],
+      });
+    }
+
     if (path === "/healthz") {
       return json({ ok: true, service: "copyme-relay", time: new Date().toISOString() });
     }
