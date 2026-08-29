@@ -3,6 +3,6 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "main": "src/crypto.ts",
+  "main": "src/crypto.js",
   "description": "CopyMe key derivation and payload encryption. Zero dependencies."
 }

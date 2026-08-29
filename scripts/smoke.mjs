@@ -14,7 +14,7 @@ import {
   encryptEntry,
   decryptEntry,
   newDeviceId,
-} from "../packages/protocol/src/crypto.ts";
+} from "../packages/protocol/src/crypto.js";
 
 let failures = 0;
 const check = (name, condition) => {

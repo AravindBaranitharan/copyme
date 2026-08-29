@@ -1,9 +1,12 @@
 /**
  * CopyMe protocol — key derivation and payload encryption.
  *
- * Zero dependencies, and identical on every client, so there is exactly one
- * implementation to audit. Runs anywhere WebCrypto exists: browsers, the VS
- * Code extension worker, and Node 18+.
+ * Zero dependencies and no build step, so the identical file runs in the
+ * browser, in the VS Code extension worker, and in Node 18+. One
+ * implementation, one thing to audit.
+ *
+ * A channel is { linkCode, channelId, authToken, epoch }.
+ * An entry is  { v, epoch, deviceId, nonce, ciphertext, contentType, createdAt? }.
  */
 
 const te = new TextEncoder();
@@ -15,33 +18,12 @@ const ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
 export const PROTOCOL_VERSION = 1;
 
 /** Domain separation. Distinct labels keep the three derived values unrelated. */
+/** Domain separation labels. */
 const LABEL = {
   channel: "copyme/v1/channel-id",
   auth: "copyme/v1/auth-token",
   aead: "copyme/v1/content-key",
-} as const;
-
-export interface Channel {
-  /** The link code itself. Never leaves the device. */
-  linkCode: string;
-  /** Public-ish identifier the relay routes on. */
-  channelId: string;
-  /** Bearer token proving membership to the relay. */
-  authToken: string;
-  /** Bumped on revocation so removed devices can no longer decrypt. */
-  epoch: number;
-}
-
-export interface Entry {
-  v: number;
-  epoch: number;
-  /** Cleartext so a receiver can rebuild the AAD and ignore its own echoes. */
-  deviceId: string;
-  nonce: string;
-  ciphertext: string;
-  contentType: string;
-  createdAt?: number;
-}
+};
 
 /* ------------------------------------------------------------------ codes */
 
@@ -50,7 +32,7 @@ export interface Entry {
  * Codes are always generated, never chosen, which is what lets us skip key
  * stretching — there is no low-entropy input to stretch.
  */
-export function generateLinkCode(): string {
+export function generateLinkCode() {
   const bytes = crypto.getRandomValues(new Uint8Array(20));
   let bits = 0;
   let acc = 0;
@@ -66,7 +48,7 @@ export function generateLinkCode(): string {
   return "CM-" + (out.match(/.{4}/g) ?? []).join("-");
 }
 
-export function normalizeLinkCode(code: string): string {
+export function normalizeLinkCode(code) {
   return code.trim().toUpperCase().replace(/[\s-]/g, "");
 }
 
@@ -74,14 +56,14 @@ export function normalizeLinkCode(code: string): string {
  * Accepts only well-formed generated codes. Refusing free text removes the
  * offline brute-force path outright rather than trying to score entropy.
  */
-export function isValidLinkCode(code: string): boolean {
+export function isValidLinkCode(code) {
   const n = normalizeLinkCode(code);
   return /^CM[0-9A-HJKMNP-TV-Z]{32}$/.test(n);
 }
 
 /* ------------------------------------------------------------ derivation */
 
-async function hkdf(code: string, label: string, bits: number): Promise<Uint8Array> {
+async function hkdf(code, label, bits) {
   const master = await crypto.subtle.importKey("raw", te.encode(code), "HKDF", false, ["deriveBits"]);
   const derived = await crypto.subtle.deriveBits(
     { name: "HKDF", hash: "SHA-256", salt: te.encode("copyme/v1/salt"), info: te.encode(label) },
@@ -91,13 +73,13 @@ async function hkdf(code: string, label: string, bits: number): Promise<Uint8Arr
   return new Uint8Array(derived);
 }
 
-function b64url(bytes: Uint8Array): string {
+function b64url(bytes) {
   let bin = "";
   for (const b of bytes) bin += String.fromCharCode(b);
   return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 
-function unb64url(s: string): Uint8Array {
+function unb64url(s) {
   const pad = s.length % 4 === 0 ? "" : "=".repeat(4 - (s.length % 4));
   const bin = atob(s.replace(/-/g, "+").replace(/_/g, "/") + pad);
   const out = new Uint8Array(bin.length);
@@ -105,7 +87,7 @@ function unb64url(s: string): Uint8Array {
   return out;
 }
 
-export async function deriveChannel(linkCode: string, epoch = 0): Promise<Channel> {
+export async function deriveChannel(linkCode, epoch = 0) {
   if (!isValidLinkCode(linkCode)) throw new Error("That is not a valid CopyMe link code.");
   const normalized = normalizeLinkCode(linkCode);
   return {
@@ -116,7 +98,7 @@ export async function deriveChannel(linkCode: string, epoch = 0): Promise<Channe
   };
 }
 
-async function contentKey(linkCode: string, epoch: number): Promise<CryptoKey> {
+async function contentKey(linkCode, epoch) {
   const bytes = await hkdf(normalizeLinkCode(linkCode), `${LABEL.aead}/${epoch}`, 256);
   return crypto.subtle.importKey("raw", bytes, "AES-GCM", false, ["encrypt", "decrypt"]);
 }
@@ -127,15 +109,11 @@ async function contentKey(linkCode: string, epoch: number): Promise<CryptoKey> {
  * Binding the channel, epoch and origin device into the AEAD means a captured
  * payload cannot be replayed into a different channel or a rotated epoch.
  */
-function aad(channelId: string, epoch: number, deviceId: string): Uint8Array {
+function aad(channelId, epoch, deviceId) {
   return te.encode(`copyme/v1|${channelId}|${epoch}|${deviceId}`);
 }
 
-export async function encryptEntry(
-  plaintext: string,
-  channel: Channel,
-  deviceId: string,
-): Promise<Entry> {
+export async function encryptEntry(plaintext, channel, deviceId) {
   const key = await contentKey(channel.linkCode, channel.epoch);
   const nonce = crypto.getRandomValues(new Uint8Array(12));
   const sealed = await crypto.subtle.encrypt(
@@ -153,7 +131,7 @@ export async function encryptEntry(
   };
 }
 
-export async function decryptEntry(entry: Entry, channel: Channel): Promise<string> {
+export async function decryptEntry(entry, channel) {
   if (entry.v !== PROTOCOL_VERSION) throw new Error(`Unsupported entry version ${entry.v}.`);
   if (entry.epoch !== channel.epoch) throw new Error("Entry belongs to a revoked epoch.");
   const key = await contentKey(channel.linkCode, entry.epoch);
@@ -170,6 +148,6 @@ export async function decryptEntry(entry: Entry, channel: Channel): Promise<stri
 }
 
 /** Stable per-install id, used to ignore our own entries and stop sync loops. */
-export function newDeviceId(): string {
+export function newDeviceId() {
   return b64url(crypto.getRandomValues(new Uint8Array(8)));
 }

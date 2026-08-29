@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CopyMe</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Public+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-in">
+    <span class="brand">
+      <svg width="19" height="19" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+        <rect x="2.5" y="5.5" width="10" height="12" rx="2" stroke="#0F4C81" stroke-width="1.6"/>
+        <rect x="7.5" y="2.5" width="10" height="12" rx="2" fill="#F4F6F3" stroke="#0F4C81" stroke-width="1.6"/>
+      </svg>
+      CopyMe
+    </span>
+    <span class="lamp" id="lamp" data-state="idle"><i class="bulb"></i><span id="lampText">offline</span></span>
+    <button class="iconbtn" id="openSettings" hidden>Settings</button>
+  </div>
+</header>
+
+<main>
+  <div class="banner" id="banner" hidden>
+    <span><b id="bannerTitle">Something went wrong</b> <span id="bannerBody"></span></span>
+    <button id="bannerClose" aria-label="Dismiss">&times;</button>
+  </div>
+
+  <!-- ---------------------------------------------------------- setup -->
+  <section class="setup" id="setup" hidden>
+    <div class="setup-intro">
+      <h1>A clipboard that reaches <em>your other machine</em>.</h1>
+      <p class="lede">Pair this browser with another device using a one-time code. Text is sealed here before it goes anywhere, and the relay you point at can never read it.</p>
+    </div>
+
+    <div class="choices">
+      <div class="choice">
+        <h2>Start a channel</h2>
+        <p>Generates a code to enter on your other device. Use this on whichever machine you are sitting at first.</p>
+        <button class="btn btn-primary" id="createBtn">Create a channel</button>
+      </div>
+      <div class="choice">
+        <h2>Join a channel</h2>
+        <p>Already have a code from your other device? Enter it here to connect this browser to the same channel.</p>
+        <div class="field">
+          <label for="joinInput">Link code</label>
+          <input class="input" id="joinInput" placeholder="CM-XXXX-XXXX-…" autocomplete="off" spellcheck="false">
+        </div>
+        <button class="btn btn-quiet" id="joinBtn">Join</button>
+      </div>
+    </div>
+
+    <div class="choice">
+      <h2>Relay</h2>
+      <p>Where sealed text is held until your other device picks it up. Point this at your own deployment.</p>
+      <div class="field">
+        <label for="relayInput">Relay base URL</label>
+        <input class="input" id="relayInput" placeholder="http://localhost:8787" autocomplete="off" spellcheck="false">
+      </div>
+      <div><button class="btn btn-quiet" id="testBtn">Test connection</button></div>
+    </div>
+  </section>
+
+  <!-- ------------------------------------------------------ code handover -->
+  <section id="handover" hidden>
+    <div class="codecard">
+      <span class="cap">Enter this on your other device</span>
+      <div class="code" id="codeText"></div>
+      <div class="row">
+        <button class="btn btn-quiet" id="copyCode">Copy code</button>
+        <button class="btn btn-quiet" id="doneCode">I've saved it</button>
+      </div>
+      <p class="warn">This code is the key. Anyone who has it can read everything in the channel, so hand it over directly and don't paste it anywhere it will be stored.</p>
+    </div>
+  </section>
+
+  <!-- -------------------------------------------------------- station -->
+  <section id="station" hidden>
+    <div class="compose">
+      <textarea id="draft" placeholder="Type or paste what you want on your other machine…" spellcheck="false"></textarea>
+      <div class="compose-bar">
+        <span class="count" id="count">0 characters</span>
+        <button class="btn btn-quiet" id="pasteBtn">Paste from clipboard</button>
+        <button class="btn btn-primary" id="sendBtn" disabled>Send</button>
+      </div>
+    </div>
+
+    <div class="feedhead">
+      <h2>Channel</h2>
+      <span class="rule"></span>
+      <span class="n" id="feedCount"></span>
+    </div>
+
+    <div class="empty" id="empty">
+      <p>Nothing here yet. Send something from this machine, or from your other device, and it lands here.</p>
+      <p class="hint" id="emptyHint"></p>
+    </div>
+
+    <ul class="feed" id="feed"></ul>
+  </section>
+</main>
+
+<!-- ---------------------------------------------------------- settings -->
+<dialog id="settings">
+  <form method="dialog" class="sheet">
+    <h2>Settings</h2>
+
+    <div class="field">
+      <label for="relayInput2">Relay base URL</label>
+      <input class="input" id="relayInput2" autocomplete="off" spellcheck="false">
+    </div>
+
+    <label class="toggle">
+      <input type="checkbox" id="autoCopy">
+      <span>Copy arrivals automatically
+        <small>When this tab is focused, text from your other device goes straight to your clipboard. Browsers only allow this while the tab has focus.</small>
+      </span>
+    </label>
+
+    <hr>
+
+    <div class="field">
+      <label>Link code</label>
+      <div class="reveal" id="codeReveal">••••••••••••••••</div>
+      <div><button type="button" class="minibtn" id="revealBtn">Show</button></div>
+    </div>
+
+    <hr>
+
+    <div class="sheet-foot">
+      <button type="button" class="btn btn-quiet" id="forgetBtn">Forget this device</button>
+      <button type="button" class="btn btn-danger" id="eraseBtn">Erase channel</button>
+      <button class="btn btn-primary" value="close" style="margin-left:auto">Done</button>
+    </div>
+    <p style="margin:0;color:var(--muted);font-size:12.5px">
+      <b>Forget</b> clears the code from this browser only. <b>Erase</b> wipes every entry from the relay for everyone on the channel.
+    </p>
+  </form>
+</dialog>
+
+<div class="toast" id="toast"></div>
+<script type="module" src="app.js"></script>
+</body>
+</html>

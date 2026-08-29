@@ -132,3 +132,14 @@ kilobytes and fits in a single entry.
 ## License
 
 MIT
+
+## Running the web client
+
+```bash
+node packages/web/serve.mjs        # http://localhost:5173
+npx wrangler dev --port 8787       # in packages/relay, for local testing
+```
+
+The client keeps its link code in `localStorage`. Browsers have no equivalent of
+an OS keychain, so on a shared or managed machine treat the browser profile
+itself as the secret store, and use **Forget this device** when you are done.
