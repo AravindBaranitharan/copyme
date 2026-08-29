@@ -7,7 +7,11 @@
 import {
   generateLinkCode,
   isValidLinkCode,
-  deriveChannel,
+  channelFromCode,
+  channelFromPassphrase,
+  channelFromStored,
+  passwordStrength,
+  validatePairing,
   encryptEntry,
   decryptEntry,
   newDeviceId,
@@ -19,7 +23,7 @@ const POLL_ACTIVE_MS = 2000;
 const POLL_IDLE_MS = 20000;
 const DEFAULT_RELAY = "http://localhost:8787"; // rewritten by build.mjs
 const MAX_CHARS = 65000;
-const KEY = { code: "copyme.code", device: "copyme.device", relay: "copyme.relay", auto: "copyme.autocopy" };
+const KEY = { channel: "copyme.channel", device: "copyme.device", relay: "copyme.relay", auto: "copyme.autocopy" };
 
 const $ = (id) => document.getElementById(id);
 const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -248,9 +252,12 @@ function refreshFeedMeta() {
 
 /* ------------------------------------------------------------- connecting */
 
-async function connect(linkCode, { announce = false } = {}) {
-  channel = await deriveChannel(linkCode);
-  store.set(KEY.code, channel.linkCode);
+async function connect(next, { announce = false } = {}) {
+  channel = next;
+  // Only the stretched secret is persisted — never the password itself.
+  store.set(KEY.channel, JSON.stringify({
+    secret: channel.secret, epoch: channel.epoch, label: channel.label,
+  }));
   seen.clear();
   firstLoad = true;
   $("feed").replaceChildren();
@@ -275,7 +282,7 @@ function disconnect() {
   clearInterval(timer);
   cadence = null;
   channel = null;
-  store.del(KEY.code);
+  store.del(KEY.channel);
   seen.clear();
   $("feed").replaceChildren();
   lamp("idle", "offline");
@@ -310,6 +317,54 @@ $("pasteBtn").addEventListener("click", async () => {
   }
 });
 
+function readPairing() {
+  return { name: $("chName").value, password: $("chPass").value };
+}
+
+function refreshPairing() {
+  const { name, password } = readPairing();
+  const strength = passwordStrength(password);
+  const meter = $("meter");
+
+  meter.hidden = password.length === 0;
+  meter.dataset.score = String(strength.score);
+  $("meterLabel").textContent = strength.label;
+  $("passHint").textContent = password.length === 0
+    ? "At least 8 characters. A short sentence works well and is easy to say aloud."
+    : (strength.problems[0] ?? "Use the same password on your other device.");
+
+  $("connectBtn").disabled = validatePairing(name, password) !== null;
+}
+
+$("chName").addEventListener("input", refreshPairing);
+$("chPass").addEventListener("input", refreshPairing);
+for (const id of ["chName", "chPass"]) {
+  $(id).addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !$("connectBtn").disabled) $("connectBtn").click();
+  });
+}
+
+$("connectBtn").addEventListener("click", async () => {
+  const { name, password } = readPairing();
+  const problem = validatePairing(name, password);
+  if (problem) { fail("That won't work as a password.", problem); return; }
+
+  const btn = $("connectBtn");
+  btn.textContent = "Connecting…";
+  btn.classList.add("working");
+  try {
+    // Stretching is deliberately slow; yield first so the label paints.
+    await new Promise((r) => setTimeout(r, 16));
+    await connect(await channelFromPassphrase(name, password), { announce: true });
+    $("chPass").value = "";
+  } catch (err) {
+    fail("Couldn't open that channel.", err.message);
+  } finally {
+    btn.textContent = "Connect";
+    btn.classList.remove("working");
+  }
+});
+
 let pendingCode = null;
 $("createBtn").addEventListener("click", () => {
   pendingCode = generateLinkCode();
@@ -320,7 +375,7 @@ $("copyCode").addEventListener("click", async () => {
   try { await navigator.clipboard.writeText(pendingCode); toast("Code copied"); }
   catch { toast("Select the code and copy it"); }
 });
-$("doneCode").addEventListener("click", () => connect(pendingCode, { announce: true }));
+$("doneCode").addEventListener("click", async () => connect(await channelFromCode(pendingCode), { announce: true }));
 
 $("joinBtn").addEventListener("click", async () => {
   const code = $("joinInput").value.trim();
@@ -329,7 +384,7 @@ $("joinBtn").addEventListener("click", async () => {
     return;
   }
   clearFail();
-  await connect(code, { announce: true });
+  await connect(await channelFromCode(code), { announce: true });
 });
 $("joinInput").addEventListener("keydown", (e) => { if (e.key === "Enter") $("joinBtn").click(); });
 
@@ -355,8 +410,9 @@ $("bannerClose").addEventListener("click", clearFail);
 $("openSettings").addEventListener("click", () => {
   $("relayInput2").value = relayUrl;
   $("autoCopy").checked = autoCopy;
-  $("codeReveal").textContent = "••••••••••••••••";
-  $("revealBtn").textContent = "Show";
+  $("codeReveal").textContent = channel?.label
+    ? (isValidLinkCode(channel.label) ? "a generated code" : `“${channel.label}”`)
+    : "—";
   $("settings").showModal();
 });
 $("relayInput2").addEventListener("change", (e) => {
@@ -367,11 +423,6 @@ $("relayInput2").addEventListener("change", (e) => {
 $("autoCopy").addEventListener("change", (e) => {
   autoCopy = e.target.checked;
   store.set(KEY.auto, autoCopy ? "1" : "0");
-});
-$("revealBtn").addEventListener("click", () => {
-  const hidden = $("revealBtn").textContent === "Show";
-  $("codeReveal").textContent = hidden ? channel.linkCode.replace(/^CM/, "CM-").replace(/(.{4})(?=.)/g, "$1-") : "••••••••••••••••";
-  $("revealBtn").textContent = hidden ? "Hide" : "Show";
 });
 $("forgetBtn").addEventListener("click", () => { $("settings").close(); disconnect(); toast("This browser is disconnected"); });
 $("eraseBtn").addEventListener("click", async () => {
@@ -392,12 +443,15 @@ $("eraseBtn").addEventListener("click", async () => {
 $("relayInput").value = relayUrl;
 updateCount();
 
-const saved = store.get(KEY.code);
-if (saved && isValidLinkCode(saved)) {
-  connect(saved).catch(() => { disconnect(); fail("Couldn't restore your channel.", "Pair this browser again."); });
+const saved = store.get(KEY.channel);
+if (saved) {
+  channelFromStored(JSON.parse(saved))
+    .then((c) => connect(c))
+    .catch(() => { disconnect(); fail("Couldn't restore your channel.", "Connect again below."); });
 } else {
   show("setup");
 }
+refreshPairing();
 
 document.addEventListener("visibilitychange", () => {
   if (!channel) return;

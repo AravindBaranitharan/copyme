@@ -35,35 +35,56 @@
   <section class="setup" id="setup" hidden>
     <div class="setup-intro">
       <h1>A clipboard that reaches <em>your other machine</em>.</h1>
-      <p class="lede">Pair this browser with another device using a one-time code. Text is sealed here before it goes anywhere, and the relay you point at can never read it.</p>
+      <p class="lede">Pick a channel name and a password. Enter the same two on your other device and they're connected. Text is sealed here before it goes anywhere, and the relay can never read it.</p>
     </div>
 
-    <div class="choices">
-      <div class="choice">
-        <h2>Start a channel</h2>
-        <p>Generates a code to enter on your other device. Use this on whichever machine you are sitting at first.</p>
-        <button class="btn btn-primary" id="createBtn">Create a channel</button>
+    <div class="choice pair">
+      <div class="field">
+        <label for="chName">Channel name</label>
+        <input class="input" id="chName" placeholder="aravind laptops" autocomplete="off" spellcheck="false">
+        <p class="hint">Anything you'll both remember. Not secret.</p>
       </div>
-      <div class="choice">
-        <h2>Join a channel</h2>
-        <p>Already have a code from your other device? Enter it here to connect this browser to the same channel.</p>
+
+      <div class="field">
+        <label for="chPass">Password</label>
+        <input class="input" id="chPass" type="password" placeholder="a phrase you'll remember" autocomplete="off">
+        <div class="meter" id="meter" hidden>
+          <div class="meter-bar"><i id="meterFill"></i></div>
+          <span class="meter-label" id="meterLabel"></span>
+        </div>
+        <p class="hint" id="passHint">At least 8 characters. A short sentence works well and is easy to say aloud.</p>
+      </div>
+
+      <button class="btn btn-primary" id="connectBtn" disabled>Connect</button>
+      <p class="hint centered">First device in creates the channel. The second joins it. Same name, same password.</p>
+    </div>
+
+    <details class="advanced">
+      <summary>Use a generated code instead</summary>
+      <div class="advanced-body">
+        <p class="hint">A 160-bit code that can't be guessed. Stronger than any password, but you'll have to copy it across rather than remember it.</p>
+        <div class="row">
+          <button class="btn btn-quiet" id="createBtn">Generate a code</button>
+        </div>
         <div class="field">
-          <label for="joinInput">Link code</label>
+          <label for="joinInput">Or enter a code you were given</label>
           <input class="input" id="joinInput" placeholder="CM-XXXX-XXXX-…" autocomplete="off" spellcheck="false">
         </div>
-        <button class="btn btn-quiet" id="joinBtn">Join</button>
+        <div class="row"><button class="btn btn-quiet" id="joinBtn">Join with code</button></div>
       </div>
-    </div>
+    </details>
 
-    <div class="choice">
-      <h2>Relay</h2>
-      <p>Where sealed text is held until your other device picks it up. Point this at your own deployment.</p>
-      <div class="field">
-        <label for="relayInput">Relay base URL</label>
-        <input class="input" id="relayInput" placeholder="http://localhost:8787" autocomplete="off" spellcheck="false">
+    <details class="advanced">
+      <summary>Relay</summary>
+      <div class="advanced-body">
+        <p class="hint">Where sealed text waits until your other device picks it up.</p>
+        <div class="field">
+          <label for="relayInput">Relay base URL</label>
+          <input class="input" id="relayInput" autocomplete="off" spellcheck="false">
+        </div>
+        <div class="row"><button class="btn btn-quiet" id="testBtn">Test connection</button></div>
       </div>
-      <div><button class="btn btn-quiet" id="testBtn">Test connection</button></div>
-    </div>
+    </details>
   </section>
 
   <!-- ------------------------------------------------------ code handover -->
@@ -125,9 +146,8 @@
     <hr>
 
     <div class="field">
-      <label>Link code</label>
-      <div class="reveal" id="codeReveal">••••••••••••••••</div>
-      <div><button type="button" class="minibtn" id="revealBtn">Show</button></div>
+      <label>Connected to</label>
+      <div class="reveal" id="codeReveal">—</div>
     </div>
 
     <hr>

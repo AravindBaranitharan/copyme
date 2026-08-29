@@ -18,10 +18,29 @@ packages/relay      Cloudflare Worker + Durable Object
 scripts/smoke.mjs   protocol and round-trip verification
 ```
 
+## Pairing
+
+Two ways in, both ending at the same 32-byte secret.
+
+**A name and a password.** Type the same two on both machines. The name doubles
+as the PBKDF2 salt, so two people who pick the same password land in different
+channels. Because a chosen password carries far less entropy than a generated
+code, it is stretched with **PBKDF2-SHA256 at 2,000,000 iterations** — a
+fraction of a second at pairing, and a great deal of work per guess for anyone
+attacking it. Only the stretched secret is stored; the password never is.
+
+Passwords under 8 characters, digits alone, and the usual first guesses are
+refused outright — stretching raises the cost of a guess, it does not rescue
+`1234`.
+
+**A generated code.** 160 random bits as `CM-XXXX-…`, for when nothing may be
+guessable. Stronger than any password, but you have to carry it across rather
+than remember it.
+
 ## How it works
 
-A link code is 160 random bits, shown as `CM-XXXX-…` in eight groups. HKDF-SHA256
-derives three unrelated values from it:
+Whichever route you took, HKDF-SHA256 derives three unrelated values from that
+secret:
 
 | Derived      | Label                   | Used for                        |
 |--------------|-------------------------|---------------------------------|
@@ -29,7 +48,7 @@ derives three unrelated values from it:
 | Auth token   | `copyme/v1/auth-token`  | proving membership to the relay |
 | Content key  | `copyme/v1/content-key` | AES-GCM-256; never transmitted  |
 
-The link code itself never leaves the device. Content is sealed with AES-GCM
+Neither the password nor the code ever leaves the device. Content is sealed with AES-GCM
 under a fresh 96-bit nonce, with `channel | epoch | deviceId` bound in as
 additional authenticated data, so a captured payload cannot be replayed into
 another channel or a rotated epoch.

@@ -10,7 +10,11 @@
 import {
   generateLinkCode,
   isValidLinkCode,
-  deriveChannel,
+  channelFromCode,
+  channelFromPassphrase,
+  channelFromStored,
+  validatePairing,
+  passwordStrength,
   encryptEntry,
   decryptEntry,
   newDeviceId,
@@ -38,13 +42,13 @@ check("code carries 160 bits in 8 groups", code.split("-").length === 9);
 check("free text is refused", !isValidLinkCode("AAAAAAAAAAAAAAAAAAAAAAAA"));
 check("truncated code is refused", !isValidLinkCode(code.slice(0, 20)));
 
-const channel = await deriveChannel(code);
-const twin = await deriveChannel(code.toLowerCase().replace(/-/g, " "));
+const channel = await channelFromCode(code);
+const twin = await channelFromCode(code.toLowerCase().replace(/-/g, " "));
 check("derivation is deterministic", channel.channelId === twin.channelId);
 check("channel id and token are independent", channel.channelId !== channel.authToken);
 check("channel id is 128 bits of base64url", channel.channelId.length === 22);
 
-const other = await deriveChannel(generateLinkCode());
+const other = await channelFromCode(generateLinkCode());
 check("different codes give different channels", channel.channelId !== other.channelId);
 
 const deviceA = newDeviceId();
@@ -62,6 +66,42 @@ await rejects("a rotated epoch cannot decrypt", () =>
   decryptEntry({ ...entry, epoch: 1 }, { ...channel, epoch: 1 }));
 await rejects("flipped ciphertext fails the auth tag", () =>
   decryptEntry({ ...entry, ciphertext: "A" + entry.ciphertext.slice(1) }, channel));
+
+console.log("\npassphrase pairing");
+
+check("a weak password is refused", validatePairing("laptops", "1234") !== null);
+check("a common password is refused", validatePairing("laptops", "password123") !== null);
+check("digits alone are refused", validatePairing("laptops", "12345678") !== null);
+check("a short channel name is refused", validatePairing("ab", "correct horse battery") !== null);
+check("a decent pair is accepted", validatePairing("laptops", "correct horse battery") === null);
+check("a long passphrase grades strong", passwordStrength("correct horse battery staple").score === 3);
+check("a short symbol-rich password grades good", passwordStrength("Tr0ub4dor&3").score === 2);
+check("a rejected password grades zero", passwordStrength("aa").score === 0);
+
+const t0 = Date.now();
+const passA = await channelFromPassphrase("Aravind Laptops", "correct horse battery");
+const stretchMs = Date.now() - t0;
+check(`stretching costs real time (${stretchMs} ms)`, stretchMs > 20);
+
+const passB = await channelFromPassphrase("  aravind   laptops  ", "correct horse battery");
+check("name is normalised for case and spacing", passA.channelId === passB.channelId);
+
+const passWrongPw = await channelFromPassphrase("Aravind Laptops", "correct horse batteries");
+check("a different password is a different channel", passA.channelId !== passWrongPw.channelId);
+
+const passOtherName = await channelFromPassphrase("Other Room", "correct horse battery");
+check("the name salts the derivation", passA.channelId !== passOtherName.channelId);
+
+const passEntry = await encryptEntry("ssh root@10.2.0.9", passA, deviceA);
+check("passphrase channel round trips", (await decryptEntry(passEntry, passB)) === "ssh root@10.2.0.9");
+await rejects("the wrong password cannot decrypt", () => decryptEntry(passEntry, passWrongPw));
+
+const restored = await channelFromStored({ secret: passA.secret, epoch: 0, label: passA.label });
+check("a restored channel matches", restored.channelId === passA.channelId);
+const t1 = Date.now();
+await channelFromStored({ secret: passA.secret, epoch: 0, label: passA.label });
+check("restoring skips the stretching", Date.now() - t1 < stretchMs / 4);
+check("the password is never stored", !JSON.stringify(passA).includes("correct horse battery"));
 
 const relay = process.env.RELAY_URL;
 if (!relay) {
