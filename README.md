@@ -2,6 +2,9 @@
 
 An end-to-end encrypted clipboard you host yourself.
 
+**Live:** https://copyme.aravindbaranitharan.in
+**Relay:** https://copyme-relay.aravindbaranitharan.in
+
 Text copied on one machine becomes available on another. The relay that carries
 it holds no key and can decrypt nothing — it stores opaque blobs against a
 channel id and hands them back to whoever presents the right token.

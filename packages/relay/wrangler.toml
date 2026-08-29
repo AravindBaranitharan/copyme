@@ -6,9 +6,9 @@ compatibility_date = "2026-01-15"
 # the certificate on deploy, provided the zone's nameservers point at Cloudflare.
 # Keep it one level deep — free Universal SSL covers *.example.in but not
 # *.*.example.in.
-# [[routes]]
-# pattern = "copyme-relay.aravindbaranitharan.in"
-# custom_domain = true
+[[routes]]
+pattern = "copyme-relay.aravindbaranitharan.in"
+custom_domain = true
 
 [vars]
 # How long an entry lives before the relay drops it, in seconds.
