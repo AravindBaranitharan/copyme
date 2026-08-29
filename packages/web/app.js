@@ -50,8 +50,30 @@ function showStation(on) {
   $("setup").hidden = on;
   $("station").hidden = !on;
   $("leaveBtn").hidden = !on;
-  $("chip").hidden = !on;
-  if (on) $("chip").textContent = channel.label;
+  $("status").hidden = !on;
+}
+
+/** "Connected" only ever means the relay answered us, never merely that a
+ *  channel was derived — deriving one always succeeds, even offline. */
+function setStatus(state) {
+  $("status").dataset.state = state;
+  $("statusText").textContent =
+    state === "connected" ? `Connected · ${channel.label}`
+    : state === "offline" ? "Offline"
+    : "Checking…";
+}
+
+/** Cheapest call that proves both reachability and that our token is right. */
+async function verify() {
+  setStatus("checking");
+  try {
+    await call("/entries");
+    setStatus("connected");
+    return true;
+  } catch {
+    setStatus("offline");
+    return false;
+  }
 }
 
 /* -------------------------------------------------------------- relay io */
@@ -97,6 +119,7 @@ async function open(buttonId) {
     $("key").value = "";
     clearFail();
     showStation(true);
+    if (!(await verify())) fail("Channel is ready, but the relay is not reachable right now.");
   } catch (err) {
     fail(err.message);
   } finally {
@@ -134,8 +157,10 @@ $("sendBtn").addEventListener("click", async () => {
     });
     $("draft").value = "";
     clearFail();
+    setStatus("connected");
     toast("Sent");
   } catch (err) {
+    setStatus("offline");
     fail(`Could not send. ${err.message}`);
   } finally {
     $("sendBtn").disabled = false;
@@ -151,12 +176,15 @@ $("receiveBtn").addEventListener("click", async () => {
     received = await decryptEntry(entry, channel);
     $("outText").textContent = received;
     $("out").hidden = false;
+    setStatus("connected");
     clearFail();
   } catch (err) {
+    const empty = /404|empty/i.test(err.message);
+    setStatus(empty ? "connected" : "offline");
     $("out").hidden = true;
-    fail(/404|empty/i.test(err.message)
+    fail(empty
       ? "Nothing has been sent to this channel yet."
-      : `Could not receive. ${err.message}`);
+      : `Could not refresh. ${err.message}`);
   } finally {
     $("receiveBtn").disabled = false;
   }
@@ -176,6 +204,6 @@ $("copyBtn").addEventListener("click", async () => {
 const saved = store.get(KEY.channel);
 if (saved) {
   channelFromStored(JSON.parse(saved))
-    .then((c) => { channel = c; showStation(true); })
+    .then((c) => { channel = c; showStation(true); verify(); })
     .catch(() => store.del(KEY.channel));
 }
