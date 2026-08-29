@@ -1,0 +1,8 @@
+{
+  "name": "@copyme/protocol",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "main": "src/crypto.ts",
+  "description": "CopyMe key derivation and payload encryption. Zero dependencies."
+}

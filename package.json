@@ -1,0 +1,10 @@
+{
+  "name": "copyme",
+  "private": true,
+  "version": "0.1.0",
+  "description": "An end-to-end encrypted clipboard you host yourself.",
+  "workspaces": ["packages/*"],
+  "scripts": {
+    "smoke": "node scripts/smoke.mjs"
+  }
+}
