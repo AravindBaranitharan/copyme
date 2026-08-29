@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  verify:
+    name: Verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Protocol tests
+        run: npm run smoke
+
+      - name: Typecheck relay
+        run: npm run typecheck --workspace @copyme/relay
+
+      - name: Relay round trip
+        run: |
+          npx wrangler dev --port 8787 &
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:8787/healthz >/dev/null && break
+            sleep 2
+          done
+          curl -sf http://localhost:8787/healthz >/dev/null \
+            || { echo "relay never became healthy"; exit 1; }
+          cd "$GITHUB_WORKSPACE" && RELAY_URL=http://localhost:8787 npm run smoke
+        working-directory: packages/relay
+
+      - name: Web client builds
+        run: RELAY_URL=https://example.invalid npm run build:web
