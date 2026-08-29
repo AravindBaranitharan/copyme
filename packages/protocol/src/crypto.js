@@ -34,7 +34,6 @@ export const PROTOCOL_VERSION = 1;
 export const PBKDF2_ITERATIONS = 2_000_000;
 
 export const MIN_PASSWORD_LENGTH = 8;
-export const MIN_NAME_LENGTH = 3;
 
 /** Domain separation labels. */
 const LABEL = {
@@ -96,9 +95,9 @@ export function isValidLinkCode(code) {
 
 /* ------------------------------------------------------- names, passwords */
 
-/** Case and spacing must not change which channel you land in. */
-export function normalizeChannelName(name) {
-  return name.trim().toLowerCase().replace(/\s+/g, " ");
+/** Surrounding space must not change which channel you land in. Case does. */
+export function normalizeChannelKey(key) {
+  return (key ?? "").trim();
 }
 
 /** Passwords people reach for first, and that an attacker tries first too. */
@@ -147,12 +146,9 @@ export function passwordStrength(password) {
   };
 }
 
-/** Returns a message describing what is wrong, or null when the pair is usable. */
-export function validatePairing(name, password) {
-  if (normalizeChannelName(name ?? "").length < MIN_NAME_LENGTH) {
-    return `Channel name needs at least ${MIN_NAME_LENGTH} characters.`;
-  }
-  const strength = passwordStrength(password);
+/** Returns a short message describing what is wrong, or null when usable. */
+export function validateChannelKey(channelKey) {
+  const strength = passwordStrength(normalizeChannelKey(channelKey));
   return strength.ok ? null : strength.problems[0];
 }
 
@@ -170,23 +166,18 @@ async function channelFromSecret(secretBytes, epoch, label) {
 }
 
 /**
- * Name plus password. The name doubles as the PBKDF2 salt, so two people
- * choosing the same password land in different channels, and a precomputed
- * table would have to be built per name.
+ * One value that is both the channel identifier and its password. Everyone who
+ * knows it is in the channel; nobody who does not can find it. PBKDF2 makes
+ * each guess cost real time, which is what a value this short depends on.
  */
-export async function channelFromPassphrase(name, password, epoch = 0) {
-  const problem = validatePairing(name, password);
+export async function channelFromKey(channelKey, epoch = 0) {
+  const problem = validateChannelKey(channelKey);
   if (problem) throw new Error(problem);
 
-  const clean = normalizeChannelName(name);
-  const key = await crypto.subtle.importKey("raw", te.encode(password), "PBKDF2", false, ["deriveBits"]);
+  const clean = normalizeChannelKey(channelKey);
+  const key = await crypto.subtle.importKey("raw", te.encode(clean), "PBKDF2", false, ["deriveBits"]);
   const bits = await crypto.subtle.deriveBits(
-    {
-      name: "PBKDF2",
-      hash: "SHA-256",
-      salt: te.encode(`copyme/v1/channel/${clean}`),
-      iterations: PBKDF2_ITERATIONS,
-    },
+    { name: "PBKDF2", hash: "SHA-256", salt: te.encode("copyme/v1/channel-key"), iterations: PBKDF2_ITERATIONS },
     key,
     256,
   );
