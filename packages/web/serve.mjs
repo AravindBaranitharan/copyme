@@ -23,7 +23,7 @@ const TYPES = {
   ".svg": "image/svg+xml",
 };
 
-createServer(async (req, res) => {
+const server = createServer(async (req, res) => {
   const path = decodeURIComponent(new URL(req.url, "http://x").pathname);
 
   // Redirect rather than serving the app at "/", so the page's relative
@@ -48,6 +48,20 @@ createServer(async (req, res) => {
   } catch {
     res.writeHead(404).end("Not found");
   }
-}).listen(port, () => {
+});
+
+server.on("error", (err) => {
+  if (err.code === "EADDRINUSE") {
+    console.log(
+      `\n  Port ${port} is already serving something — very likely this server,\n` +
+      `  started earlier. Open http://localhost:${port} and carry on.\n\n` +
+      `  To use a different port:  PORT=5174 node packages/web/serve.mjs\n`,
+    );
+    process.exit(0);
+  }
+  throw err;
+});
+
+server.listen(port, () => {
   console.log(`\n  CopyMe web client  →  http://localhost:${port}\n`);
 });
