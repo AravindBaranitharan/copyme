@@ -2,6 +2,14 @@ name = "copyme-relay"
 main = "src/index.ts"
 compatibility_date = "2025-07-18"
 
+# Serve the relay from your own subdomain. Wrangler creates the DNS record and
+# the certificate on deploy, provided the zone's nameservers point at Cloudflare.
+# Keep it one level deep — free Universal SSL covers *.example.in but not
+# *.*.example.in.
+# [[routes]]
+# pattern = "copyme-relay.aravindbaranitharan.in"
+# custom_domain = true
+
 [vars]
 # How long an entry lives before the relay drops it, in seconds.
 # 900 (15 min) is the safe default; 3600 trades some exposure for convenience.

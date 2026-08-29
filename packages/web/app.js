@@ -13,7 +13,11 @@ import {
   newDeviceId,
 } from "../protocol/src/crypto.js";
 
-const POLL_MS = 2000;
+// Polling cadence. Idle tabs back off hard: at 2s a single device would spend
+// 43,200 requests a day, which eats a free-tier budget while doing nothing.
+const POLL_ACTIVE_MS = 2000;
+const POLL_IDLE_MS = 20000;
+const DEFAULT_RELAY = "http://localhost:8787"; // rewritten by build.mjs
 const MAX_CHARS = 65000;
 const KEY = { code: "copyme.code", device: "copyme.device", relay: "copyme.relay", auto: "copyme.autocopy" };
 
@@ -30,9 +34,10 @@ const store = {
 
 let channel = null;          // derived channel, held in memory
 let deviceId = store.get(KEY.device);
-let relayUrl = store.get(KEY.relay, "http://localhost:8787");
+let relayUrl = store.get(KEY.relay, DEFAULT_RELAY);
 let autoCopy = store.get(KEY.auto) === "1";
 let timer = null;
+let cadence = null;
 let firstLoad = true;
 const seen = new Set();      // seq numbers already rendered
 
@@ -252,14 +257,23 @@ async function connect(linkCode, { announce = false } = {}) {
   $("emptyHint").textContent = `this device is ${deviceId.replace(/[^A-Za-z0-9]/g, "").slice(0, 6)} · relay ${relayUrl.replace(/^https?:\/\//, "")}`;
   show("station");
   lamp("idle", "connecting");
-  clearInterval(timer);
-  timer = setInterval(poll, POLL_MS);
+  schedule();
   await poll();
   if (announce) toast("Connected");
 }
 
+/** Runs the poll loop at the cadence the tab's state deserves. */
+function schedule() {
+  const wanted = document.hidden ? POLL_IDLE_MS : POLL_ACTIVE_MS;
+  if (cadence === wanted && timer) return;
+  cadence = wanted;
+  clearInterval(timer);
+  timer = setInterval(poll, wanted);
+}
+
 function disconnect() {
   clearInterval(timer);
+  cadence = null;
   channel = null;
   store.del(KEY.code);
   seen.clear();
@@ -385,4 +399,8 @@ if (saved && isValidLinkCode(saved)) {
   show("setup");
 }
 
-document.addEventListener("visibilitychange", () => { if (!document.hidden) poll(); });
+document.addEventListener("visibilitychange", () => {
+  if (!channel) return;
+  schedule();
+  if (!document.hidden) poll();
+});

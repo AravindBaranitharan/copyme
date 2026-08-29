@@ -5,6 +5,8 @@
   "description": "An end-to-end encrypted clipboard you host yourself.",
   "workspaces": ["packages/*"],
   "scripts": {
-    "smoke": "node scripts/smoke.mjs"
+    "smoke": "node scripts/smoke.mjs",
+    "serve": "node packages/web/serve.mjs",
+    "build:web": "node packages/web/build.mjs"
   }
 }
