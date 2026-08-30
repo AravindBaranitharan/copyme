@@ -1,5 +1,5 @@
 /**
- * CopyMe — an encrypted clipboard between your machines.
+ * Meow — an encrypted clipboard between your machines.
  *
  * Security posture, in one place so it can be checked:
  *
@@ -50,8 +50,8 @@ interface Entry {
   createdAt: number;
 }
 
-const SECRET_KEY = "copyme.channel.v1";
-const DEVICE_KEY = "copyme.device.v1";
+const SECRET_KEY = "meow.channel.v1";
+const DEVICE_KEY = "meow.device.v1";
 const REQUEST_TIMEOUT_MS = 30_000;
 
 let channel: Channel | null = null;
@@ -66,7 +66,7 @@ let status: vscode.StatusBarItem;
  */
 function relayUrl(): string {
   const raw = vscode.workspace
-    .getConfiguration("copyme")
+    .getConfiguration("meow")
     .get<string>("relayUrl", "https://copyme-relay.aravindbaranitharan.in")
     .trim()
     .replace(/\/+$/, "");
@@ -85,7 +85,7 @@ function relayUrl(): string {
 }
 
 async function call<T>(path: string, init: RequestInit = {}): Promise<T | null> {
-  if (!channel) throw new Error('Not connected. Run "CopyMe: Connect to a Channel".');
+  if (!channel) throw new Error('Not connected. Run "Meow: Connect to a Channel".');
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
@@ -124,23 +124,23 @@ async function call<T>(path: string, init: RequestInit = {}): Promise<T | null> 
 function paint() {
   if (!status) return;
   if (channel) {
-    status.text = `$(clippy) CopyMe ${channel.fingerprint}`;
+    status.text = `$(clippy) Meow ${channel.fingerprint}`;
     status.tooltip = new vscode.MarkdownString(
       `Connected to channel \`${channel.fingerprint}\`.\n\n` +
         "This fingerprint is derived one way from your channel id. " +
         "It should read identically on your other machine.",
     );
-    status.command = "copyme.history";
+    status.command = "meow.history";
   } else {
-    status.text = "$(clippy) CopyMe";
+    status.text = "$(clippy) Meow";
     status.tooltip = "Not connected. Click to connect.";
-    status.command = "copyme.connect";
+    status.command = "meow.connect";
   }
   status.show();
 }
 
 async function requireChannel(): Promise<Channel> {
-  if (!channel) throw new Error('Not connected. Run "CopyMe: Connect to a Channel".');
+  if (!channel) throw new Error('Not connected. Run "Meow: Connect to a Channel".');
   return channel;
 }
 
@@ -151,7 +151,7 @@ async function requireChannel(): Promise<Channel> {
  * unusually large. Returns false when the user backs out.
  */
 async function confirmSend(text: string): Promise<boolean> {
-  const config = vscode.workspace.getConfiguration("copyme");
+  const config = vscode.workspace.getConfiguration("meow");
 
   if (config.get<boolean>("warnOnSecrets", true)) {
     const hits = findSecrets(text);
@@ -179,14 +179,14 @@ async function confirmSend(text: string): Promise<boolean> {
 
 async function send(text: string, what: string) {
   if (!text.trim()) {
-    vscode.window.showWarningMessage(`CopyMe: no ${what} to send.`);
+    vscode.window.showWarningMessage(`Meow: no ${what} to send.`);
     return;
   }
   const active = await requireChannel();
   if (!(await confirmSend(text))) return;
 
   await vscode.window.withProgress(
-    { location: vscode.ProgressLocation.Window, title: "CopyMe: sending…" },
+    { location: vscode.ProgressLocation.Window, title: "Meow: sending…" },
     async () => {
       await call("/entries", {
         method: "POST",
@@ -194,7 +194,7 @@ async function send(text: string, what: string) {
       });
     },
   );
-  vscode.window.setStatusBarMessage(`CopyMe: sent ${text.length.toLocaleString()} characters`, 2500);
+  vscode.window.setStatusBarMessage(`Meow: sent ${text.length.toLocaleString()} characters`, 2500);
 }
 
 /* ---------------------------------------------------------------- receive */
@@ -223,7 +223,7 @@ async function insert(text: string) {
   const editor = vscode.window.activeTextEditor;
   if (!editor) {
     await vscode.env.clipboard.writeText(text);
-    vscode.window.showInformationMessage("CopyMe: no editor open — copied to the clipboard instead.");
+    vscode.window.showInformationMessage("Meow: no editor open — copied to the clipboard instead.");
     return;
   }
   await editor.edit((builder) => {
@@ -246,7 +246,7 @@ function register(context: vscode.ExtensionContext, id: string, handler: () => P
         await handler();
       } catch (err) {
         // Errors are surfaced, never logged — a message could carry a token.
-        vscode.window.showErrorMessage(`CopyMe: ${err instanceof Error ? err.message : String(err)}`);
+        vscode.window.showErrorMessage(`Meow: ${err instanceof Error ? err.message : String(err)}`);
       }
     }),
   );
@@ -269,9 +269,9 @@ export async function activate(context: vscode.ExtensionContext) {
   }
   paint();
 
-  register(context, "copyme.connect", async () => {
+  register(context, "meow.connect", async () => {
     const id = await vscode.window.showInputBox({
-      title: "CopyMe: connect to a channel",
+      title: "Meow: connect to a channel",
       prompt: "Enter the same channel id on both machines. It is also the password.",
       password: true,
       ignoreFocusOut: true,
@@ -280,7 +280,7 @@ export async function activate(context: vscode.ExtensionContext) {
     if (!id) return;
 
     await vscode.window.withProgress(
-      { location: vscode.ProgressLocation.Notification, title: "CopyMe: deriving keys…" },
+      { location: vscode.ProgressLocation.Notification, title: "Meow: deriving keys…" },
       async () => {
         channel = await channelFromKey(id);
         await context.secrets.store(SECRET_KEY, JSON.stringify(toStored(channel)));
@@ -288,52 +288,52 @@ export async function activate(context: vscode.ExtensionContext) {
     );
     paint();
     vscode.window.showInformationMessage(
-      `CopyMe: connected. Fingerprint ${channel!.fingerprint} — it should match your other machine.`,
+      `Meow: connected. Fingerprint ${channel!.fingerprint} — it should match your other machine.`,
     );
   });
 
-  register(context, "copyme.disconnect", async () => {
+  register(context, "meow.disconnect", async () => {
     await context.secrets.delete(SECRET_KEY);
     channel = null;
     paint();
-    vscode.window.showInformationMessage("CopyMe: disconnected from this machine.");
+    vscode.window.showInformationMessage("Meow: disconnected from this machine.");
   });
 
-  register(context, "copyme.showFingerprint", async () => {
+  register(context, "meow.showFingerprint", async () => {
     const active = await requireChannel();
     vscode.window.showInformationMessage(
-      `CopyMe fingerprint: ${active.fingerprint}. Your other machine should show the same.`,
+      `Meow fingerprint: ${active.fingerprint}. Your other machine should show the same.`,
     );
   });
 
-  register(context, "copyme.sendSelection", async () => {
+  register(context, "meow.sendSelection", async () => {
     const editor = vscode.window.activeTextEditor;
     if (!editor || editor.selection.isEmpty) {
-      vscode.window.showWarningMessage("CopyMe: select some text first.");
+      vscode.window.showWarningMessage("Meow: select some text first.");
       return;
     }
     await send(editor.document.getText(editor.selection), "selection");
   });
 
-  register(context, "copyme.sendClipboard", async () => {
+  register(context, "meow.sendClipboard", async () => {
     await send(await vscode.env.clipboard.readText(), "clipboard text");
   });
 
-  register(context, "copyme.copyLatest", async () => {
+  register(context, "meow.copyLatest", async () => {
     const text = await latestText();
     await vscode.env.clipboard.writeText(text);
-    vscode.window.setStatusBarMessage(`CopyMe: copied ${text.length.toLocaleString()} characters`, 2500);
+    vscode.window.setStatusBarMessage(`Meow: copied ${text.length.toLocaleString()} characters`, 2500);
   });
 
-  register(context, "copyme.insertLatest", async () => {
+  register(context, "meow.insertLatest", async () => {
     await insert(await latestText());
   });
 
-  register(context, "copyme.history", async () => {
+  register(context, "meow.history", async () => {
     const active = await requireChannel();
     const all = await entries();
     if (all.length === 0) {
-      vscode.window.showInformationMessage("CopyMe: this channel is empty.");
+      vscode.window.showInformationMessage("Meow: this channel is empty.");
       return;
     }
 
@@ -352,7 +352,7 @@ export async function activate(context: vscode.ExtensionContext) {
       }
     }
     if (items.length === 0) {
-      vscode.window.showWarningMessage("CopyMe: nothing here opens with this channel id.");
+      vscode.window.showWarningMessage("Meow: nothing here opens with this channel id.");
       return;
     }
 
@@ -370,13 +370,13 @@ export async function activate(context: vscode.ExtensionContext) {
 
     if (action.id === "copy") {
       await vscode.env.clipboard.writeText(picked.text);
-      vscode.window.setStatusBarMessage("CopyMe: copied", 2000);
+      vscode.window.setStatusBarMessage("Meow: copied", 2000);
     } else {
       await insert(picked.text);
     }
   });
 
-  register(context, "copyme.clearHistory", async () => {
+  register(context, "meow.clearHistory", async () => {
     const active = await requireChannel();
     const choice = await vscode.window.showWarningMessage(
       `Erase every entry in channel ${active.fingerprint}?`,
@@ -385,13 +385,13 @@ export async function activate(context: vscode.ExtensionContext) {
     );
     if (choice !== "Erase") return;
     await call("", { method: "DELETE" });
-    vscode.window.showInformationMessage("CopyMe: channel history erased.");
+    vscode.window.showInformationMessage("Meow: channel history erased.");
   });
 
-  register(context, "copyme.setRelayUrl", async () => {
-    const current = vscode.workspace.getConfiguration("copyme").get<string>("relayUrl", "");
+  register(context, "meow.setRelayUrl", async () => {
+    const current = vscode.workspace.getConfiguration("meow").get<string>("relayUrl", "");
     const next = await vscode.window.showInputBox({
-      title: "CopyMe: relay URL",
+      title: "Meow: relay URL",
       value: current,
       ignoreFocusOut: true,
       prompt: "Must be https unless it is localhost.",
@@ -408,15 +408,15 @@ export async function activate(context: vscode.ExtensionContext) {
     });
     if (!next) return;
     await vscode.workspace
-      .getConfiguration("copyme")
+      .getConfiguration("meow")
       .update("relayUrl", next.trim().replace(/\/+$/, ""), vscode.ConfigurationTarget.Global);
-    vscode.window.showInformationMessage("CopyMe: relay updated.");
+    vscode.window.showInformationMessage("Meow: relay updated.");
   });
 
-  register(context, "copyme.testConnection", async () => {
+  register(context, "meow.testConnection", async () => {
     const base = relayUrl();
     await vscode.window.withProgress(
-      { location: vscode.ProgressLocation.Notification, title: "CopyMe: testing…" },
+      { location: vscode.ProgressLocation.Notification, title: "Meow: testing…" },
       async () => {
         const response = await fetch(`${base}/healthz`, { cache: "no-store", credentials: "omit" });
         if (!response.ok) throw new Error(`Relay answered ${response.status}.`);
@@ -424,7 +424,7 @@ export async function activate(context: vscode.ExtensionContext) {
         if (!body.ok) throw new Error("Relay answered, but not correctly.");
       },
     );
-    vscode.window.showInformationMessage(`CopyMe: relay is healthy at ${base}`);
+    vscode.window.showInformationMessage(`Meow: relay is healthy at ${base}`);
   });
 }
 

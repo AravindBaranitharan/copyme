@@ -1,4 +1,4 @@
-# CopyMe
+# Meow
 
 An encrypted clipboard between your machines, inside the editor.
 
@@ -8,7 +8,7 @@ no key for — and you can host that relay yourself.
 
 ## Getting started
 
-1. Run **CopyMe: Connect to a Channel** and enter a channel id.
+1. Run **Meow: Connect to a Channel** and enter a channel id.
 2. Do the same on your other machine, with the **same id**.
 3. Check the fingerprint in the status bar matches on both. If it does, you are
    on the same channel.
@@ -38,9 +38,9 @@ so pick something only you would choose, and prefer something long.
 
 | Setting | Default | Purpose |
 |---|---|---|
-| `copyme.relayUrl` | the hosted relay | Where sealed text waits. Must be https outside localhost |
-| `copyme.warnOnSecrets` | `true` | Ask before sending anything shaped like a credential |
-| `copyme.confirmLargeSends` | `100000` | Ask before sending more than this many characters |
+| `meow.relayUrl` | the hosted relay | Where sealed text waits. Must be https outside localhost |
+| `meow.warnOnSecrets` | `true` | Ask before sending anything shaped like a credential |
+| `meow.confirmLargeSends` | `100000` | Ask before sending more than this many characters |
 
 ## How it is secured
 
@@ -86,7 +86,7 @@ rescue `1234`. Entries also sit on the relay until they expire.
 ## Self-hosting
 
 The relay is a small Cloudflare Worker in the same repository. Deploy your own
-and point `copyme.relayUrl` at it.
+and point `meow.relayUrl` at it.
 
 Source: https://github.com/AravindBaranitharan/copyme
 

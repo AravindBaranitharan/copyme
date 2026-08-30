@@ -42,12 +42,12 @@ jobs:
         run: RELAY_URL=https://example.invalid npm run build:web
 
       - name: Typecheck extension
-        run: npm run typecheck --workspace copyme
+        run: npm run typecheck --workspace meow
 
       - name: Extension packages
         run: |
           npm run compile
-          npx vsce package --no-dependencies --out /tmp/copyme.vsix
+          npx vsce package --no-dependencies --out /tmp/meow.vsix
         working-directory: packages/vscode
 
       - name: Extension ships nothing it should not
