@@ -7,6 +7,7 @@
  * Point it at a running relay to verify the full round trip:
  *     RELAY_URL=http://localhost:8787 node scripts/smoke.mjs
  */
+import { readFile } from "node:fs/promises";
 import {
   generateLinkCode,
   isValidLinkCode,
@@ -129,12 +130,24 @@ if (!relay) {
   });
   check("a foreign token is rejected", wrongToken.status === 401);
 
+  // Must exceed MAX_ENTRY_BYTES in packages/relay/wrangler.toml, whatever it is.
+  const capBytes = Number(
+    (await readFile(new URL("../packages/relay/wrangler.toml", import.meta.url), "utf8"))
+      .match(/MAX_ENTRY_BYTES\s*=\s*"(\d+)"/)?.[1] ?? 4_000_000,
+  );
   const oversized = await fetch(url, {
     method: "POST",
     headers: auth,
-    body: JSON.stringify({ ...entry, ciphertext: "A".repeat(200_000) }),
+    body: JSON.stringify({ ...entry, ciphertext: "A".repeat(capBytes + 1024) }),
   });
-  check("oversized entry is rejected", oversized.status === 413);
+  check(`an entry over the ${Math.round(capBytes / 1024)} KB cap is rejected`, oversized.status === 413);
+
+  const atCap = await fetch(url, {
+    method: "POST",
+    headers: auth,
+    body: JSON.stringify({ ...entry, ciphertext: "A".repeat(capBytes - 2048) }),
+  });
+  check("an entry just under the cap is accepted", atCap.status === 201);
 
   const malformed = await fetch(url, {
     method: "POST",

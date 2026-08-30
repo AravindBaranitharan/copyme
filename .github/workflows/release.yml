@@ -1,0 +1,90 @@
+name: Release extension
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Build and attach the VSIX without publishing"
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Package and publish
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Verify before publishing anything
+        run: |
+          npm run smoke
+          npm run typecheck --workspace copyme
+
+      # A tag that disagrees with the manifest would publish the wrong version
+      # under the right name, which cannot be undone on the Marketplace.
+      - name: Tag matches the manifest version
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          manifest=$(node -p "require('./packages/vscode/package.json').version")
+          tag="${GITHUB_REF_NAME#v}"
+          echo "manifest=$manifest tag=$tag"
+          [ "$manifest" = "$tag" ] || { echo "::error::tag v$tag does not match manifest $manifest"; exit 1; }
+
+      - name: Build and package
+        working-directory: packages/vscode
+        run: |
+          npm run compile
+          npx vsce package --no-dependencies --out copyme.vsix
+
+      - name: Extension ships nothing it should not
+        run: |
+          set -e
+          bundle=packages/vscode/dist/web/extension.js
+          for pattern in child_process 'require("fs")' 'new Function' telemetry analytics; do
+            if grep -qF "$pattern" "$bundle"; then
+              echo "::error::extension bundle contains $pattern"; exit 1
+            fi
+          done
+          origins=$(grep -oE 'https?://[a-zA-Z0-9._-]+' "$bundle" | sort -u)
+          echo "outbound origins:"; echo "$origins"
+          [ "$(echo "$origins" | wc -l)" -eq 1 ] || { echo "::error::more than one outbound origin"; exit 1; }
+
+      - name: Publish to the VS Code Marketplace
+        if: startsWith(github.ref, 'refs/tags/v') && env.VSCE_PAT != ''
+        working-directory: packages/vscode
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+        run: npx vsce publish --no-dependencies --packagePath copyme.vsix
+
+      # Cursor, VSCodium, Gitpod and Windsurf install from Open VSX, not the
+      # Microsoft Marketplace, so a release that skips it misses those editors.
+      - name: Publish to Open VSX
+        if: startsWith(github.ref, 'refs/tags/v') && env.OVSX_PAT != ''
+        working-directory: packages/vscode
+        env:
+          OVSX_PAT: ${{ secrets.OVSX_PAT }}
+        run: npx ovsx publish copyme.vsix -p "$OVSX_PAT"
+
+      - name: Attach the VSIX to a GitHub release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: packages/vscode/copyme.vsix
+          generate_release_notes: true
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: copyme-vsix
+          path: packages/vscode/copyme.vsix
