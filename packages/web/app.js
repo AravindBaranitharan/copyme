@@ -15,7 +15,7 @@ import {
 } from "../protocol/src/crypto.js";
 
 const DEFAULT_RELAY = "http://localhost:8787"; // rewritten by build.mjs
-const MAX_CHARS = 65000;
+const MAX_CHARS = 2_000_000;  // the relay caps ciphertext, which is ~4/3 of this
 const KEY = { channel: "copyme.channel", device: "copyme.device" };
 
 const $ = (id) => document.getElementById(id);
@@ -119,7 +119,8 @@ async function open(buttonId) {
     $("key").value = "";
     clearFail();
     showStation(true);
-    if (!(await verify())) fail("Channel is ready, but the relay is not reachable right now.");
+    if (await verify()) await refresh();
+    else fail("Channel is ready, but the relay is not reachable right now.");
   } catch (err) {
     fail(err.message);
   } finally {
@@ -136,7 +137,7 @@ $("key").addEventListener("input", clearFail);
 $("leaveBtn").addEventListener("click", () => {
   store.del(KEY.channel);
   channel = null;
-  $("out").hidden = true;
+  $("history").replaceChildren();
   $("draft").value = "";
   clearFail();
   showStation(false);
@@ -159,6 +160,7 @@ $("sendBtn").addEventListener("click", async () => {
     clearFail();
     setStatus("connected");
     toast("Sent");
+    await refresh();
   } catch (err) {
     setStatus("offline");
     fail(`Could not send. ${err.message}`);
@@ -167,35 +169,103 @@ $("sendBtn").addEventListener("click", async () => {
   }
 });
 
-let received = "";
+/* ---------------------------------------------------------------- history */
 
-$("receiveBtn").addEventListener("click", async () => {
+function timeOf(entry) {
+  return entry.createdAt ? new Date(entry.createdAt).toLocaleTimeString() : "";
+}
+
+function renderEmpty(message) {
+  const box = document.createElement("div");
+  box.className = "empty";
+  box.textContent = message;
+  $("history").replaceChildren(box);
+}
+
+/** Renders newest first, marking which side each entry came from. */
+async function render(entries) {
+  if (!entries.length) {
+    renderEmpty("Nothing in this channel yet.");
+    return;
+  }
+
+  const nodes = [];
+  for (const entry of entries) {
+    let text;
+    try {
+      text = await decryptEntry(entry, channel);
+    } catch {
+      continue; // sealed under a different id; not ours to show
+    }
+
+    const item = document.createElement("div");
+    item.className = `item${entry.deviceId === deviceId ? "" : " theirs"}`;
+
+    const meta = document.createElement("div");
+    meta.className = "meta";
+    meta.textContent = [
+      entry.deviceId === deviceId ? "sent from here" : "from your other device",
+      timeOf(entry),
+      `${text.length.toLocaleString()} chars`,
+    ].filter(Boolean).join("  ·  ");
+
+    const body = document.createElement("pre");
+    body.textContent = text;
+
+    const copy = document.createElement("button");
+    copy.className = "btn";
+    copy.textContent = "Copy";
+    copy.addEventListener("click", async () => {
+      try {
+        await navigator.clipboard.writeText(text);
+        copy.textContent = "Copied";
+        setTimeout(() => { copy.textContent = "Copy"; }, 1300);
+      } catch {
+        fail("The browser blocked the clipboard — select the text and copy it.");
+      }
+    });
+
+    item.append(meta, body, copy);
+    nodes.push(item);
+  }
+
+  if (!nodes.length) {
+    renderEmpty("There are entries here, but none open with this channel id.");
+    return;
+  }
+  $("history").replaceChildren(...nodes);
+}
+
+async function refresh() {
   $("receiveBtn").disabled = true;
   try {
-    const entry = await call("/entries/latest");
-    received = await decryptEntry(entry, channel);
-    $("outText").textContent = received;
-    $("out").hidden = false;
+    const { entries = [] } = (await call("/entries")) ?? {};
     setStatus("connected");
     clearFail();
+    await render(entries);
   } catch (err) {
-    const empty = /404|empty/i.test(err.message);
-    setStatus(empty ? "connected" : "offline");
-    $("out").hidden = true;
-    fail(empty
-      ? "Nothing has been sent to this channel yet."
-      : `Could not refresh. ${err.message}`);
+    setStatus("offline");
+    fail(`Could not refresh. ${err.message}`);
   } finally {
     $("receiveBtn").disabled = false;
   }
-});
+}
 
-$("copyBtn").addEventListener("click", async () => {
+$("receiveBtn").addEventListener("click", refresh);
+
+$("clearBtn").addEventListener("click", async () => {
+  $("clearBtn").disabled = true;
   try {
-    await navigator.clipboard.writeText(received);
-    toast("Copied");
-  } catch {
-    fail("The browser blocked the clipboard — select the text and copy it.");
+    await call("", { method: "DELETE" });
+    setStatus("connected");
+    clearFail();
+    renderEmpty("History cleared.");
+    toast("History cleared");
+  } catch (err) {
+    setStatus("offline");
+    fail(`Could not clear history. ${err.message}`);
+  } finally {
+    $("clearBtn").disabled = false;
   }
 });
 
@@ -204,6 +274,6 @@ $("copyBtn").addEventListener("click", async () => {
 const saved = store.get(KEY.channel);
 if (saved) {
   channelFromStored(JSON.parse(saved))
-    .then((c) => { channel = c; showStation(true); verify(); })
+    .then(async (c) => { channel = c; showStation(true); if (await verify()) refresh(); })
     .catch(() => store.del(KEY.channel));
 }
