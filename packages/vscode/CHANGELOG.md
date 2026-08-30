@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.1
+
+- First release published from CI rather than uploaded by hand. No change to
+  the extension itself: the pipeline verifies, refuses to publish when the tag
+  disagrees with the manifest, re-runs the bundle audit, and ships to both the
+  Marketplace and Open VSX.
+
 ## 0.1.0
 
 - Connect to a channel with a single id, stretched with PBKDF2 and stored in the OS keychain
