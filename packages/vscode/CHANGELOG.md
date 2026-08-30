@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.5
+
+- Wording.
+
 ## 0.1.4
 
 - Drop the banner from the marketplace page. The text says it already.

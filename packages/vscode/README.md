@@ -17,7 +17,7 @@ carries it can never read it.
 **Clipwire: Connect to a Channel**. Type the *same* channel id on both:
 
 ```
-aravind-laptops-2026
+quiet-harbour-desk-42
 ```
 
 That id is also the password — pick something only you would choose, and make
@@ -78,7 +78,7 @@ Source: [github.com/AravindBaranitharan/copyme](https://github.com/AravindBarani
 
 ## About
 
-I'm **Aravind Baranitharan**, an AI engineer. I build systems.
+I'm **Aravind Baranitharan**, an AI engineer.
 
 [aravindbaranitharan.in](https://aravindbaranitharan.in)
 
