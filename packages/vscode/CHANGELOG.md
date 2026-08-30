@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.4
+
+- Drop the banner from the marketplace page. The text says it already.
+
 ## 0.1.3
 
 - Plainer description, and a README that shows a real example rather than

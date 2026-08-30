@@ -1,7 +1,3 @@
-<p align="center">
-  <img src="https://raw.githubusercontent.com/AravindBaranitharan/copyme/main/packages/vscode/images/banner.png" width="340" alt="Clipwire — encrypted clipboard">
-</p>
-
 # Clipwire
 
 Copy on one machine. Paste on the other.
