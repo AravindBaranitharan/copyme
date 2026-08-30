@@ -3,7 +3,7 @@
   "displayName": "Clipwire",
   "description": "Encrypted clipboard sync between your machines. Send code and text from one editor to another through a relay you host yourself.",
   "version": "0.1.0",
-  "publisher": "aravindbaranitharan",
+  "publisher": "AravindBaranitharan",
   "license": "MIT",
   "icon": "images/icon.png",
   "repository": { "type": "git", "url": "https://github.com/AravindBaranitharan/copyme" },
