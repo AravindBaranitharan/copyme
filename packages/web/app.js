@@ -1,9 +1,13 @@
 /**
  * CopyMe web client.
  *
- * Enter a channel id, send text, receive it on the other machine. The id is
- * also the password: it never leaves this file, and the relay only ever holds
- * sealed payloads it cannot open.
+ * Enter a channel id, send text, refresh on the other machine. The id is also
+ * the password: it never leaves this file, and the relay only ever holds sealed
+ * payloads it cannot open.
+ *
+ * The lattice behind the panel is wired to real events — a send or an arrival
+ * fires a shockwave — so the motion reports what the app is doing rather than
+ * just filling space.
  */
 import {
   channelFromKey,
@@ -13,6 +17,7 @@ import {
   decryptEntry,
   newDeviceId,
 } from "../protocol/src/crypto.js";
+import { createLattice } from "./lattice.js";
 
 const DEFAULT_RELAY = "http://localhost:8787"; // rewritten by build.mjs
 const MAX_CHARS = 2_000_000;  // the relay caps ciphertext, which is ~4/3 of this
@@ -30,6 +35,8 @@ let channel = null;
 let deviceId = store.get(KEY.device);
 if (!deviceId) { deviceId = newDeviceId(); store.set(KEY.device, deviceId); }
 
+const lattice = createLattice($("lattice"));
+
 /* ---------------------------------------------------------------- chrome */
 
 function toast(message) {
@@ -37,7 +44,7 @@ function toast(message) {
   el.textContent = message;
   el.classList.add("show");
   clearTimeout(el._t);
-  el._t = setTimeout(() => el.classList.remove("show"), 1800);
+  el._t = setTimeout(() => el.classList.remove("show"), 1700);
 }
 
 function fail(message) {
@@ -53,27 +60,14 @@ function showStation(on) {
   $("status").hidden = !on;
 }
 
-/** "Connected" only ever means the relay answered us, never merely that a
- *  channel was derived — deriving one always succeeds, even offline. */
+/** "Connected" only ever means the relay answered — deriving a channel always
+ *  succeeds, even offline, so the pill is set from a real request. */
 function setStatus(state) {
   $("status").dataset.state = state;
   $("statusText").textContent =
-    state === "connected" ? `Connected · ${channel.label}`
+    state === "connected" ? channel.label
     : state === "offline" ? "Offline"
-    : "Checking…";
-}
-
-/** Cheapest call that proves both reachability and that our token is right. */
-async function verify() {
-  setStatus("checking");
-  try {
-    await call("/entries");
-    setStatus("connected");
-    return true;
-  } catch {
-    setStatus("offline");
-    return false;
-  }
+    : "Checking";
 }
 
 /* -------------------------------------------------------------- relay io */
@@ -98,6 +92,18 @@ async function call(path, options = {}) {
   return payload;
 }
 
+async function verify() {
+  setStatus("checking");
+  try {
+    await call("/entries");
+    setStatus("connected");
+    return true;
+  } catch {
+    setStatus("offline");
+    return false;
+  }
+}
+
 /* -------------------------------------------------------------- pairing */
 
 async function open(buttonId) {
@@ -106,8 +112,9 @@ async function open(buttonId) {
   if (problem) { fail(problem); return; }
 
   const button = $(buttonId);
-  const original = button.textContent;
-  button.textContent = "Connecting…";
+  const label = button.querySelector("span");
+  const original = label.textContent;
+  label.textContent = "Working";
   $("createBtn").disabled = $("joinBtn").disabled = true;
 
   try {
@@ -119,12 +126,13 @@ async function open(buttonId) {
     $("key").value = "";
     clearFail();
     showStation(true);
+    lattice.shockwaveFrom(button, 1.4);
     if (await verify()) await refresh();
     else fail("Channel is ready, but the relay is not reachable right now.");
   } catch (err) {
     fail(err.message);
   } finally {
-    button.textContent = original;
+    label.textContent = original;
     $("createBtn").disabled = $("joinBtn").disabled = false;
   }
 }
@@ -143,37 +151,7 @@ $("leaveBtn").addEventListener("click", () => {
   showStation(false);
 });
 
-/* ------------------------------------------------------------ send / get */
-
-$("sendBtn").addEventListener("click", async () => {
-  const text = $("draft").value;
-  if (!text.trim()) { fail("Nothing to send."); return; }
-  if (text.length > MAX_CHARS) { fail(`Too long — the limit is ${MAX_CHARS.toLocaleString()} characters.`); return; }
-
-  $("sendBtn").disabled = true;
-  try {
-    await call("/entries", {
-      method: "POST",
-      body: JSON.stringify(await encryptEntry(text, channel, deviceId)),
-    });
-    $("draft").value = "";
-    clearFail();
-    setStatus("connected");
-    toast("Sent");
-    await refresh();
-  } catch (err) {
-    setStatus("offline");
-    fail(`Could not send. ${err.message}`);
-  } finally {
-    $("sendBtn").disabled = false;
-  }
-});
-
 /* ---------------------------------------------------------------- history */
-
-function timeOf(entry) {
-  return entry.createdAt ? new Date(entry.createdAt).toLocaleTimeString() : "";
-}
 
 function renderEmpty(message) {
   const box = document.createElement("div");
@@ -185,7 +163,7 @@ function renderEmpty(message) {
 /** Renders newest first, marking which side each entry came from. */
 async function render(entries) {
   if (!entries.length) {
-    renderEmpty("Nothing in this channel yet.");
+    renderEmpty("Nothing in this channel yet");
     return;
   }
 
@@ -204,8 +182,8 @@ async function render(entries) {
     const meta = document.createElement("div");
     meta.className = "meta";
     meta.textContent = [
-      entry.deviceId === deviceId ? "sent from here" : "from your other device",
-      timeOf(entry),
+      entry.deviceId === deviceId ? "from here" : "from your other device",
+      entry.createdAt ? new Date(entry.createdAt).toLocaleTimeString() : "",
       `${text.length.toLocaleString()} chars`,
     ].filter(Boolean).join("  ·  ");
 
@@ -214,12 +192,15 @@ async function render(entries) {
 
     const copy = document.createElement("button");
     copy.className = "btn";
-    copy.textContent = "Copy";
+    const copyLabel = document.createElement("span");
+    copyLabel.textContent = "Copy";
+    copy.append(copyLabel);
     copy.addEventListener("click", async () => {
       try {
         await navigator.clipboard.writeText(text);
-        copy.textContent = "Copied";
-        setTimeout(() => { copy.textContent = "Copy"; }, 1300);
+        copyLabel.textContent = "Copied";
+        lattice.shockwaveFrom(copy, 0.7);
+        setTimeout(() => { copyLabel.textContent = "Copy"; }, 1300);
       } catch {
         fail("The browser blocked the clipboard — select the text and copy it.");
       }
@@ -230,18 +211,28 @@ async function render(entries) {
   }
 
   if (!nodes.length) {
-    renderEmpty("There are entries here, but none open with this channel id.");
+    renderEmpty("Entries here, but none open with this id");
     return;
   }
   $("history").replaceChildren(...nodes);
 }
 
-async function refresh() {
+let lastSeen = 0;
+
+async function refresh({ quiet = false } = {}) {
   $("receiveBtn").disabled = true;
   try {
     const { entries = [] } = (await call("/entries")) ?? {};
     setStatus("connected");
     clearFail();
+
+    // A shockwave only when something genuinely new arrived from elsewhere.
+    const newest = entries[0];
+    if (!quiet && newest && newest.seq > lastSeen && newest.deviceId !== deviceId) {
+      lattice.shockwaveFrom($("receiveBtn"), 1.3);
+    }
+    if (newest) lastSeen = Math.max(lastSeen, newest.seq);
+
     await render(entries);
   } catch (err) {
     setStatus("offline");
@@ -251,7 +242,37 @@ async function refresh() {
   }
 }
 
-$("receiveBtn").addEventListener("click", refresh);
+$("receiveBtn").addEventListener("click", () => refresh());
+
+/* ------------------------------------------------------------------ send */
+
+$("sendBtn").addEventListener("click", async () => {
+  const text = $("draft").value;
+  if (!text.trim()) { fail("Nothing to send."); return; }
+  if (text.length > MAX_CHARS) {
+    fail(`Too long — the limit is ${MAX_CHARS.toLocaleString()} characters.`);
+    return;
+  }
+
+  $("sendBtn").disabled = true;
+  try {
+    await call("/entries", {
+      method: "POST",
+      body: JSON.stringify(await encryptEntry(text, channel, deviceId)),
+    });
+    $("draft").value = "";
+    clearFail();
+    setStatus("connected");
+    lattice.shockwaveFrom($("sendBtn"), 1.6);
+    toast("Sent");
+    await refresh({ quiet: true });
+  } catch (err) {
+    setStatus("offline");
+    fail(`Could not send. ${err.message}`);
+  } finally {
+    $("sendBtn").disabled = false;
+  }
+});
 
 $("clearBtn").addEventListener("click", async () => {
   $("clearBtn").disabled = true;
@@ -259,8 +280,9 @@ $("clearBtn").addEventListener("click", async () => {
     await call("", { method: "DELETE" });
     setStatus("connected");
     clearFail();
-    renderEmpty("History cleared.");
-    toast("History cleared");
+    lastSeen = 0;
+    renderEmpty("History cleared");
+    toast("Cleared");
   } catch (err) {
     setStatus("offline");
     fail(`Could not clear history. ${err.message}`);
@@ -269,11 +291,30 @@ $("clearBtn").addEventListener("click", async () => {
   }
 });
 
+/* ---------------------------------------------------------- lattice tools */
+
+$("pulseBtn").addEventListener("click", () => {
+  lattice.shockwave(innerWidth / 2, innerHeight / 2, 1.5, Math.max(innerWidth, innerHeight) * 0.85);
+});
+
+$("freezeBtn").addEventListener("click", () => {
+  const next = !lattice.isRunning();
+  lattice.setRunning(next);
+  $("freezeLabel").textContent = next ? "Freeze" : "Run";
+  $("freezeIcon").innerHTML = next
+    ? '<path d="M7 4v16M17 4v16"/>'
+    : '<path d="M6 4l14 8-14 8z"/>';
+});
+
 /* ------------------------------------------------------------------ boot */
 
 const saved = store.get(KEY.channel);
 if (saved) {
   channelFromStored(JSON.parse(saved))
-    .then(async (c) => { channel = c; showStation(true); if (await verify()) refresh(); })
+    .then(async (c) => {
+      channel = c;
+      showStation(true);
+      if (await verify()) refresh({ quiet: true });
+    })
     .catch(() => store.del(KEY.channel));
 }
