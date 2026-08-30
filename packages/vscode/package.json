@@ -2,7 +2,7 @@
   "name": "clipwire",
   "displayName": "Clipwire",
   "description": "Copy on one machine, paste on the other. An encrypted clipboard between your computers, right in the sidebar.",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "publisher": "AravindBaranitharan",
   "license": "MIT",
   "icon": "images/icon.png",

@@ -48,24 +48,22 @@ Each item is labelled with the machine it came from.
 
 ## An example
 
-You're debugging on a remote VM and need a command on your laptop.
+**On machine one** — type it in the box, press **Send**:
 
-**On the VM** — paste the line into the panel's box and press **Send**:
-
-```bash
-kubectl -n payments logs deploy/ledger-api --since=15m | grep -i timeout
+```
+git checkout -b fix/login-redirect
 ```
 
-**On your laptop** — open the panel, press **Refresh**, then **Insert** on that
-item. The line appears where your cursor is. That's the whole thing.
+**On machine two** — press **Refresh**, then **Insert**.
+
+The text appears at your cursor. That's it.
 
 ## Without the panel
 
-Everything is a command too, which is faster once you know it. Select text and
-right-click → **Clipwire → Send Selection**, then on the other machine run
-**Clipwire: Insert Latest at Cursor** from the command palette.
+Select text in the editor, right-click → **Clipwire → Send Selection**. On the
+other machine, run **Clipwire: Insert Latest at Cursor**.
 
-Worth binding if you do it often:
+Worth a keybinding if you do it often:
 
 ```json
 { "key": "cmd+alt+c", "command": "clipwire.sendSelection", "when": "editorHasSelection" },

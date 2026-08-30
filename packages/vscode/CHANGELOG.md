@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.3
+
+- A simpler example.
+
 ## 0.2.2
 
 - Describe the panel on the marketplace page, and mention Refresh in the
