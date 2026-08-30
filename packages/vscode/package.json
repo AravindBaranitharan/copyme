@@ -1,8 +1,8 @@
 {
   "name": "clipwire",
   "displayName": "Clipwire",
-  "description": "Encrypted clipboard sync between your machines. Send code and text from one editor to another through a relay you host yourself.",
-  "version": "0.1.2",
+  "description": "Copy on one machine, paste on the other. An encrypted clipboard between your computers, without leaving the editor.",
+  "version": "0.1.3",
   "publisher": "AravindBaranitharan",
   "license": "MIT",
   "icon": "images/icon.png",

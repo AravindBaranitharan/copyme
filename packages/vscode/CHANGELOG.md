@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.3
+
+- Plainer description, and a README that shows a real example rather than
+  describing one.
+
 ## 0.1.2
 
 - New icon and a banner on the marketplace page.

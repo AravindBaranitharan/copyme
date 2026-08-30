@@ -1,98 +1,90 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/AravindBaranitharan/copyme/main/packages/vscode/images/banner.png" width="360" alt="Clipwire — encrypted clipboard">
+  <img src="https://raw.githubusercontent.com/AravindBaranitharan/copyme/main/packages/vscode/images/banner.png" width="340" alt="Clipwire — encrypted clipboard">
 </p>
 
 # Clipwire
 
-An encrypted clipboard between your machines, inside the editor.
+Copy on one machine. Paste on the other.
 
-Select code on one machine, send it, and paste it on the other. Text is sealed
-on your device before it leaves. The relay carrying it holds ciphertext it has
-no key for — and you can host that relay yourself.
+Two computers that can't share a clipboard — your laptop and a remote VM, a work
+machine and a personal one, a virtual desktop and the laptop in front of you.
+Clipwire moves text between them without leaving the editor.
+
+Everything is encrypted on your machine before it leaves. The server that
+carries it can never read it.
 
 ## Getting started
 
-1. Run **Clipwire: Connect to a Channel** and enter a channel id.
-2. Do the same on your other machine, with the **same id**.
-3. Check the fingerprint in the status bar matches on both. If it does, you are
-   on the same channel.
-4. Select text, right-click → **CopyMe → Send Selection**.
-5. On the other machine, **CopyMe → Insert Latest at Cursor**.
+**1. Install Clipwire on both machines.**
 
-The channel id is also the password. Anyone who knows it can read the channel,
-so pick something only you would choose, and prefer something long.
+**2. On each one**, open the command palette (`Ctrl/Cmd+Shift+P`) and run
+**Clipwire: Connect to a Channel**. Type the *same* channel id on both:
+
+```
+aravind-laptops-2026
+```
+
+That id is also the password — pick something only you would choose, and make
+it long.
+
+**3. Check the fingerprint** in the status bar. Both machines should show the
+same eight characters. If they match, you're connected.
+
+```
+Clipwire 8qOWwOVc
+```
+
+## An example
+
+You're debugging on a remote VM and need a command on your laptop.
+
+**On the VM** — select the line, right-click, choose **Clipwire → Send Selection**:
+
+```bash
+kubectl -n payments logs deploy/ledger-api --since=15m | grep -i timeout
+```
+
+**On your laptop** — press `Ctrl/Cmd+Shift+P` and run
+**Clipwire: Insert Latest at Cursor**.
+
+The line appears where your cursor is. That's the whole thing.
+
+You can send your clipboard instead of a selection, copy an arriving item
+straight to the clipboard, or open **Clipwire: Show History** to pick from
+recent items.
 
 ## Commands
 
 | Command | What it does |
 |---|---|
-| Connect to a Channel | Enter a channel id and pair this machine |
-| Disconnect | Forget the channel on this machine only |
-| Send Selection | Encrypt and send the editor selection |
-| Send Clipboard | Encrypt and send the system clipboard |
-| Copy Latest to Clipboard | Fetch and decrypt the newest entry |
-| Insert Latest at Cursor | Fetch, decrypt and insert |
-| Show History | Pick from recent entries |
-| Clear Channel History | Erase the channel for every device on it |
-| Show Channel Fingerprint | Display the fingerprint for comparison |
-| Set Relay URL | Point at your own relay |
-| Test Connection | Check the relay is reachable and healthy |
+| Connect to a Channel | Pair this machine using a channel id |
+| Send Selection | Send the selected text |
+| Send Clipboard | Send whatever you last copied |
+| Insert Latest at Cursor | Paste the newest item into the editor |
+| Copy Latest to Clipboard | Put the newest item on your clipboard |
+| Show History | Pick from recent items |
+| Clear Channel History | Erase everything in the channel |
+| Disconnect | Forget the channel on this machine |
 
-## Settings
+## Is it safe
 
-| Setting | Default | Purpose |
-|---|---|---|
-| `clipwire.relayUrl` | the hosted relay | Where sealed text waits. Must be https outside localhost |
-| `clipwire.warnOnSecrets` | `true` | Ask before sending anything shaped like a credential |
-| `clipwire.confirmLargeSends` | `100000` | Ask before sending more than this many characters |
+It's a tool that sends your clipboard off your machine, so the short answer
+matters:
 
-## How it is secured
+- **Encrypted before it leaves.** The server stores sealed text it has no key for.
+- **Your id is never stored or shown.** It's stretched and kept in the OS keychain. The fingerprint you see is derived one way from it and gives nothing away.
+- **The clipboard is never watched.** Sending is always a command you run. Nothing is picked up in the background.
+- **It warns you.** If what you're sending looks like a password, key or token, it asks first.
+- **No tracking.** No telemetry, no analytics, one server it talks to.
+- **You can host the server yourself** — it's in the repo — and point Clipwire at it with **Set Relay URL**.
 
-**The id never lands anywhere.** It is read with a masked prompt, stretched with
-PBKDF2-SHA256 at 2,000,000 iterations, and discarded. Only the stretched secret
-is kept, in VS Code's `SecretStorage`, which is backed by the OS keychain — not
-settings, not workspace state, not a file.
+Source: [github.com/AravindBaranitharan/copyme](https://github.com/AravindBaranitharan/copyme)
 
-**Channels are shown as a fingerprint**, eight characters derived one way from
-that secret. It is identical on every device in the channel and reveals nothing
-about the id, so matching fingerprints confirm you are paired without either
-screen displaying the secret.
+## About
 
-**The relay cannot read anything.** Text is sealed with AES-GCM-256 under a
-fresh nonce, binding channel, epoch and origin device as additional
-authenticated data so a captured payload cannot be replayed elsewhere.
+I'm **Aravind Baranitharan**, an AI engineer. I build systems.
 
-**Plaintext http is refused** outside loopback, so a channel token cannot cross
-the network in the clear. Redirects are refused too, since one could carry the
-token to another origin.
-
-**Sending is always an explicit command.** The clipboard is never watched in the
-background. That is deliberate: a watcher cannot tell a password manager's
-contents from anything else, and this extension has no API that would let it
-find out.
-
-**Before sending, it looks.** Text shaped like a private key, cloud access key,
-token, connection string or `.env` assignment prompts for confirmation. That is
-a speed bump built on heuristics, not a guarantee — it will miss things.
-
-**No telemetry, no analytics, no third-party endpoint.** The bundle contains one
-outbound origin: the relay you configured.
-
-**It is a web extension**, so the host denies it filesystem and process access
-outright, and the same build runs in VS Code, Cursor and `vscode.dev`.
-
-## What it does not protect against
-
-Someone at your unlocked machine. Anyone who learns your channel id. And a
-short, guessable id — stretching raises the cost of each guess but cannot
-rescue `1234`. Entries also sit on the relay until they expire.
-
-## Self-hosting
-
-The relay is a small Cloudflare Worker in the same repository. Deploy your own
-and point `clipwire.relayUrl` at it.
-
-Source: https://github.com/AravindBaranitharan/copyme
+[aravindbaranitharan.in](https://aravindbaranitharan.in)
 
 ## License
 
