@@ -30,6 +30,22 @@ show the same eight characters. If they match, you're connected.
 8qOWwOVc
 ```
 
+## The panel
+
+Everything lives in one place:
+
+| | |
+|---|---|
+| **Channel ID** | Type an id and press **Connect**. The same box joins an existing channel — whoever connects first creates it. |
+| **Fingerprint** | Eight characters at the top once connected. They must match on both machines. |
+| **Send** | Type or paste, press **Send**. |
+| **Refresh** | Pull in whatever has arrived. |
+| **Insert / Copy** | On each item — drop it at your cursor, or put it on your clipboard. |
+| **Clear** | Erase the channel for every machine on it. |
+| **Leave** | Forget the channel on this machine only. |
+
+Each item is labelled with the machine it came from.
+
 ## An example
 
 You're debugging on a remote VM and need a command on your laptop.
@@ -40,11 +56,8 @@ You're debugging on a remote VM and need a command on your laptop.
 kubectl -n payments logs deploy/ledger-api --since=15m | grep -i timeout
 ```
 
-**On your laptop** — open the panel and press **Insert** on that item. The line
-appears where your cursor is. That's the whole thing.
-
-The panel shows recent items, each with **Insert** and **Copy**, and marks
-which machine every one came from.
+**On your laptop** — open the panel, press **Refresh**, then **Insert** on that
+item. The line appears where your cursor is. That's the whole thing.
 
 ## Without the panel
 
@@ -79,7 +92,7 @@ matters:
 
 - **Encrypted before it leaves.** The server stores sealed text it has no key for.
 - **Your id is never stored or shown.** It's stretched and kept in the OS keychain. The fingerprint you see is derived one way from it and gives nothing away.
-- **The clipboard is never watched.** Sending is always a command you run. Nothing is picked up in the background.
+- **The clipboard is never watched.** Nothing leaves until you press Send or run the command. Nothing is picked up in the background.
 - **It warns you.** If what you're sending looks like a password, key or token, it asks first.
 - **No tracking.** No telemetry, no analytics, one server it talks to.
 - **You can host the server yourself** — it's in the repo — and point Clipwire at it with **Set Relay URL**.

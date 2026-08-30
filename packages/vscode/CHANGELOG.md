@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.2
+
+- Describe the panel on the marketplace page, and mention Refresh in the
+  walkthrough — the step between sending and seeing it arrive.
+
 ## 0.2.1
 
 - The panel showed the connect form and the connected view at the same time.
