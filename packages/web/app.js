@@ -12,6 +12,7 @@
 import {
   channelFromKey,
   channelFromStored,
+  toStored,
   validateChannelKey,
   encryptEntry,
   decryptEntry,
@@ -65,7 +66,7 @@ function showStation(on) {
 function setStatus(state) {
   $("status").dataset.state = state;
   $("statusText").textContent =
-    state === "connected" ? channel.label
+    state === "connected" ? channel.fingerprint
     : state === "offline" ? "Offline"
     : "Checking";
 }
@@ -120,9 +121,7 @@ async function open(buttonId) {
   try {
     await new Promise((r) => setTimeout(r, 16)); // let the label paint
     channel = await channelFromKey(value);
-    store.set(KEY.channel, JSON.stringify({
-      secret: channel.secret, epoch: channel.epoch, label: channel.label,
-    }));
+    store.set(KEY.channel, JSON.stringify(toStored(channel)));
     $("key").value = "";
     clearFail();
     showStation(true);

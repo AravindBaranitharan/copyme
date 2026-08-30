@@ -40,3 +40,29 @@ jobs:
 
       - name: Web client builds
         run: RELAY_URL=https://example.invalid npm run build:web
+
+      - name: Typecheck extension
+        run: npm run typecheck --workspace copyme
+
+      - name: Extension packages
+        run: |
+          npm run compile
+          npx vsce package --no-dependencies --out /tmp/copyme.vsix
+        working-directory: packages/vscode
+
+      - name: Extension ships nothing it should not
+        run: |
+          set -e
+          bundle=packages/vscode/dist/web/extension.js
+          for pattern in child_process 'require("fs")' 'new Function' telemetry analytics; do
+            if grep -qF "$pattern" "$bundle"; then
+              echo "::error::extension bundle contains $pattern"
+              exit 1
+            fi
+          done
+          origins=$(grep -oE 'https?://[a-zA-Z0-9._-]+' "$bundle" | sort -u)
+          echo "outbound origins:"; echo "$origins"
+          if [ "$(echo "$origins" | wc -l)" -gt 1 ]; then
+            echo "::error::more than one outbound origin in the extension bundle"
+            exit 1
+          fi

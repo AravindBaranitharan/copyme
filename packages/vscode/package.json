@@ -1,0 +1,82 @@
+{
+  "name": "copyme",
+  "displayName": "CopyMe",
+  "description": "Encrypted clipboard between your machines. Share text through a relay you host yourself.",
+  "version": "0.1.0",
+  "publisher": "aravindbaranitharan",
+  "license": "MIT",
+  "icon": "images/icon.png",
+  "repository": { "type": "git", "url": "https://github.com/AravindBaranitharan/copyme" },
+  "bugs": { "url": "https://github.com/AravindBaranitharan/copyme/issues" },
+  "homepage": "https://copyme.aravindbaranitharan.in",
+  "galleryBanner": { "color": "#06070A", "theme": "dark" },
+  "engines": { "vscode": "^1.90.0" },
+  "categories": ["Other"],
+  "keywords": ["clipboard", "encrypted", "sync", "remote", "share"],
+  "browser": "./dist/web/extension.js",
+  "activationEvents": [],
+  "capabilities": {
+    "untrustedWorkspaces": { "supported": true },
+    "virtualWorkspaces": true
+  },
+  "contributes": {
+    "commands": [
+      { "command": "copyme.connect", "title": "Connect to a Channel", "category": "CopyMe" },
+      { "command": "copyme.disconnect", "title": "Disconnect", "category": "CopyMe" },
+      { "command": "copyme.sendSelection", "title": "Send Selection", "category": "CopyMe" },
+      { "command": "copyme.sendClipboard", "title": "Send Clipboard", "category": "CopyMe" },
+      { "command": "copyme.copyLatest", "title": "Copy Latest to Clipboard", "category": "CopyMe" },
+      { "command": "copyme.insertLatest", "title": "Insert Latest at Cursor", "category": "CopyMe" },
+      { "command": "copyme.history", "title": "Show History", "category": "CopyMe" },
+      { "command": "copyme.clearHistory", "title": "Clear Channel History", "category": "CopyMe" },
+      { "command": "copyme.showFingerprint", "title": "Show Channel Fingerprint", "category": "CopyMe" },
+      { "command": "copyme.setRelayUrl", "title": "Set Relay URL", "category": "CopyMe" },
+      { "command": "copyme.testConnection", "title": "Test Connection", "category": "CopyMe" }
+    ],
+    "submenus": [{ "id": "copyme.menu", "label": "CopyMe" }],
+    "menus": {
+      "editor/context": [{ "submenu": "copyme.menu", "group": "9_cutcopypaste@100" }],
+      "copyme.menu": [
+        { "command": "copyme.sendSelection", "when": "editorHasSelection", "group": "1_send@1" },
+        { "command": "copyme.sendClipboard", "group": "1_send@2" },
+        { "command": "copyme.insertLatest", "group": "2_receive@1" },
+        { "command": "copyme.copyLatest", "group": "2_receive@2" }
+      ]
+    },
+    "configuration": {
+      "title": "CopyMe",
+      "properties": {
+        "copyme.relayUrl": {
+          "type": "string",
+          "default": "https://copyme-relay.aravindbaranitharan.in",
+          "markdownDescription": "Base URL of the CopyMe relay. Must be **https** outside localhost — the extension refuses plaintext http so a channel token cannot cross the network in the clear."
+        },
+        "copyme.warnOnSecrets": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Ask before sending text that looks like a credential — private keys, cloud access keys, tokens or `.env` assignments. Detection is a heuristic, not a guarantee."
+        },
+        "copyme.confirmLargeSends": {
+          "type": "number",
+          "default": 100000,
+          "markdownDescription": "Ask before sending text longer than this many characters. Set to `0` to never ask."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "compile": "node esbuild.mjs",
+    "watch": "node esbuild.mjs --watch",
+    "typecheck": "tsc --noEmit",
+    "package": "npm run compile && vsce package --no-dependencies",
+    "publish:vsce": "npm run compile && vsce publish --no-dependencies",
+    "publish:ovsx": "npm run compile && ovsx publish --no-dependencies"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.90.0",
+    "@vscode/vsce": "^3.2.0",
+    "esbuild": "^0.25.0",
+    "ovsx": "^0.10.1",
+    "typescript": "^5.7.0"
+  }
+}

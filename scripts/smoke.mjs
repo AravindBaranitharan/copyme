@@ -13,6 +13,7 @@ import {
   channelFromCode,
   channelFromKey,
   channelFromStored,
+  toStored,
   validateChannelKey,
   passwordStrength,
   encryptEntry,
@@ -94,12 +95,16 @@ const passEntry = await encryptEntry("ssh root@10.2.0.9", passA, deviceA);
 check("passphrase channel round trips", (await decryptEntry(passEntry, passB)) === "ssh root@10.2.0.9");
 await rejects("a different id cannot decrypt", () => decryptEntry(passEntry, passWrongPw));
 
-const restored = await channelFromStored({ secret: passA.secret, epoch: 0, label: passA.label });
+const restored = await channelFromStored(toStored(passA));
 check("a restored channel matches", restored.channelId === passA.channelId);
 const t1 = Date.now();
-await channelFromStored({ secret: passA.secret, epoch: 0, label: passA.label });
+await channelFromStored(toStored(passA));
 check("restoring skips the stretching", Date.now() - t1 < stretchMs / 4);
-check("the id is not recoverable from the stored secret", !JSON.stringify({secret:passA.secret}).includes("Aravind1"));
+check("nothing persisted contains the id", !JSON.stringify(toStored(passA)).includes("Aravind1"));
+check("the channel object never carries the id", !JSON.stringify(passA).includes("Aravind1"));
+check("fingerprint is stable across devices", passA.fingerprint === passB.fingerprint);
+check("fingerprint differs per channel", passA.fingerprint !== passWrongPw.fingerprint);
+check("fingerprint reveals nothing about the id", passA.fingerprint.length === 8 && !passA.fingerprint.includes("Aravind"));
 
 const relay = process.env.RELAY_URL;
 if (!relay) {

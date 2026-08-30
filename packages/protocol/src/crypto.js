@@ -40,6 +40,7 @@ const LABEL = {
   channel: "copyme/v1/channel-id",
   auth: "copyme/v1/auth-token",
   aead: "copyme/v1/content-key",
+  fingerprint: "copyme/v1/fingerprint",
 };
 
 /* ------------------------------------------------------------- primitives */
@@ -154,14 +155,23 @@ export function validateChannelKey(channelKey) {
 
 /* ------------------------------------------------------------ derivation */
 
-/** Builds a channel from an already-derived 32-byte secret. */
-async function channelFromSecret(secretBytes, epoch, label) {
+/**
+ * Builds a channel from an already-derived 32-byte secret.
+ *
+ * The channel id people type is also the password, so it is never carried on
+ * the channel object and never persisted. What is shown instead is a
+ * fingerprint: eight characters derived one-way from the secret, identical on
+ * every device in the channel and useless to anyone outside it. Matching
+ * fingerprints on two machines confirms they are paired without either screen
+ * displaying the secret.
+ */
+async function channelFromSecret(secretBytes, epoch) {
   return {
     secret: b64url(secretBytes),
     channelId: b64url(await hkdf(secretBytes, LABEL.channel, 128)),
     authToken: b64url(await hkdf(secretBytes, LABEL.auth, 256)),
+    fingerprint: b64url(await hkdf(secretBytes, LABEL.fingerprint, 48)).slice(0, 8),
     epoch,
-    label,
   };
 }
 
@@ -181,7 +191,7 @@ export async function channelFromKey(channelKey, epoch = 0) {
     key,
     256,
   );
-  return channelFromSecret(new Uint8Array(bits), epoch, clean);
+  return channelFromSecret(new Uint8Array(bits), epoch);
 }
 
 /** A generated code already carries full entropy, so no stretching is needed. */
@@ -189,12 +199,17 @@ export async function channelFromCode(linkCode, epoch = 0) {
   if (!isValidLinkCode(linkCode)) throw new Error("That is not a valid CopyMe link code.");
   const normalized = normalizeLinkCode(linkCode);
   const secret = await hkdf(te.encode(normalized), "copyme/v1/code-secret", 256);
-  return channelFromSecret(secret, epoch, normalized);
+  return channelFromSecret(secret, epoch);
 }
 
 /** Rebuilds a channel from what was stored, with no derivation cost. */
 export async function channelFromStored(stored) {
-  return channelFromSecret(unb64url(stored.secret), stored.epoch ?? 0, stored.label ?? "");
+  return channelFromSecret(unb64url(stored.secret), stored.epoch ?? 0);
+}
+
+/** Exactly what is safe to persist: the stretched secret and its epoch. */
+export function toStored(channel) {
+  return { secret: channel.secret, epoch: channel.epoch };
 }
 
 async function contentKey(secretB64, epoch) {
