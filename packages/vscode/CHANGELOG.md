@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.2
+
+- New icon and a banner on the marketplace page.
+
 ## 0.1.1
 
 - First release published from CI rather than uploaded by hand. No change to

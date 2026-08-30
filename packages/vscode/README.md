@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="https://raw.githubusercontent.com/AravindBaranitharan/copyme/main/packages/vscode/images/banner.png" width="360" alt="Clipwire — encrypted clipboard">
+</p>
+
 # Clipwire
 
 An encrypted clipboard between your machines, inside the editor.

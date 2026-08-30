@@ -5,3 +5,4 @@ esbuild.mjs
 tsconfig.json
 node_modules/**
 .vscodeignore
+images/banner.png
