@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.0
+
+- A Clipwire panel in the Activity Bar: connect, send, and browse what has
+  arrived without touching the command palette. Every item shows which machine
+  it came from, with Insert and Copy.
+- The commands still work, and still take keybindings.
+
 ## 0.1.5
 
 - Wording.

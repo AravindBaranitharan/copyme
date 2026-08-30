@@ -13,8 +13,8 @@ carries it can never read it.
 
 **1. Install Clipwire on both machines.**
 
-**2. On each one**, open the command palette (`Ctrl/Cmd+Shift+P`) and run
-**Clipwire: Connect to a Channel**. Type the *same* channel id on both:
+**2. Click the Clipwire icon** in the Activity Bar on the left. Type the *same*
+channel id on both machines and press Connect:
 
 ```
 quiet-harbour-desk-42
@@ -23,31 +23,41 @@ quiet-harbour-desk-42
 That id is also the password — pick something only you would choose, and make
 it long.
 
-**3. Check the fingerprint** in the status bar. Both machines should show the
-same eight characters. If they match, you're connected.
+**3. Check the fingerprint** shown at the top of the panel. Both machines should
+show the same eight characters. If they match, you're connected.
 
 ```
-Clipwire 8qOWwOVc
+8qOWwOVc
 ```
 
 ## An example
 
 You're debugging on a remote VM and need a command on your laptop.
 
-**On the VM** — select the line, right-click, choose **Clipwire → Send Selection**:
+**On the VM** — paste the line into the panel's box and press **Send**:
 
 ```bash
 kubectl -n payments logs deploy/ledger-api --since=15m | grep -i timeout
 ```
 
-**On your laptop** — press `Ctrl/Cmd+Shift+P` and run
-**Clipwire: Insert Latest at Cursor**.
+**On your laptop** — open the panel and press **Insert** on that item. The line
+appears where your cursor is. That's the whole thing.
 
-The line appears where your cursor is. That's the whole thing.
+The panel shows recent items, each with **Insert** and **Copy**, and marks
+which machine every one came from.
 
-You can send your clipboard instead of a selection, copy an arriving item
-straight to the clipboard, or open **Clipwire: Show History** to pick from
-recent items.
+## Without the panel
+
+Everything is a command too, which is faster once you know it. Select text and
+right-click → **Clipwire → Send Selection**, then on the other machine run
+**Clipwire: Insert Latest at Cursor** from the command palette.
+
+Worth binding if you do it often:
+
+```json
+{ "key": "cmd+alt+c", "command": "clipwire.sendSelection", "when": "editorHasSelection" },
+{ "key": "cmd+alt+v", "command": "clipwire.insertLatest" }
+```
 
 ## Commands
 

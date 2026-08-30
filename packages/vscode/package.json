@@ -2,45 +2,143 @@
   "name": "clipwire",
   "displayName": "Clipwire",
   "description": "Copy on one machine, paste on the other. An encrypted clipboard between your computers, without leaving the editor.",
-  "version": "0.1.5",
+  "version": "0.2.0",
   "publisher": "AravindBaranitharan",
   "license": "MIT",
   "icon": "images/icon.png",
-  "repository": { "type": "git", "url": "https://github.com/AravindBaranitharan/copyme" },
-  "bugs": { "url": "https://github.com/AravindBaranitharan/copyme/issues" },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/AravindBaranitharan/copyme"
+  },
+  "bugs": {
+    "url": "https://github.com/AravindBaranitharan/copyme/issues"
+  },
   "homepage": "https://copyme.aravindbaranitharan.in",
-  "galleryBanner": { "color": "#06070A", "theme": "dark" },
-  "engines": { "vscode": "^1.90.0" },
-  "categories": ["Other"],
-  "keywords": ["clipboard", "clipboard sync", "encrypted", "sync", "remote", "share", "transfer", "copy paste", "cross machine"],
+  "galleryBanner": {
+    "color": "#06070A",
+    "theme": "dark"
+  },
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "clipboard",
+    "clipboard sync",
+    "encrypted",
+    "sync",
+    "remote",
+    "share",
+    "transfer",
+    "copy paste",
+    "cross machine"
+  ],
   "browser": "./dist/web/extension.js",
   "activationEvents": [],
   "capabilities": {
-    "untrustedWorkspaces": { "supported": true },
+    "untrustedWorkspaces": {
+      "supported": true
+    },
     "virtualWorkspaces": true
   },
   "contributes": {
     "commands": [
-      { "command": "clipwire.connect", "title": "Connect to a Channel", "category": "Clipwire" },
-      { "command": "clipwire.disconnect", "title": "Disconnect", "category": "Clipwire" },
-      { "command": "clipwire.sendSelection", "title": "Send Selection", "category": "Clipwire" },
-      { "command": "clipwire.sendClipboard", "title": "Send Clipboard", "category": "Clipwire" },
-      { "command": "clipwire.copyLatest", "title": "Copy Latest to Clipboard", "category": "Clipwire" },
-      { "command": "clipwire.insertLatest", "title": "Insert Latest at Cursor", "category": "Clipwire" },
-      { "command": "clipwire.history", "title": "Show History", "category": "Clipwire" },
-      { "command": "clipwire.clearHistory", "title": "Clear Channel History", "category": "Clipwire" },
-      { "command": "clipwire.showFingerprint", "title": "Show Channel Fingerprint", "category": "Clipwire" },
-      { "command": "clipwire.setRelayUrl", "title": "Set Relay URL", "category": "Clipwire" },
-      { "command": "clipwire.testConnection", "title": "Test Connection", "category": "Clipwire" }
+      {
+        "command": "clipwire.connect",
+        "title": "Connect to a Channel",
+        "category": "Clipwire"
+      },
+      {
+        "command": "clipwire.disconnect",
+        "title": "Disconnect",
+        "category": "Clipwire"
+      },
+      {
+        "command": "clipwire.sendSelection",
+        "title": "Send Selection",
+        "category": "Clipwire"
+      },
+      {
+        "command": "clipwire.sendClipboard",
+        "title": "Send Clipboard",
+        "category": "Clipwire"
+      },
+      {
+        "command": "clipwire.copyLatest",
+        "title": "Copy Latest to Clipboard",
+        "category": "Clipwire"
+      },
+      {
+        "command": "clipwire.insertLatest",
+        "title": "Insert Latest at Cursor",
+        "category": "Clipwire"
+      },
+      {
+        "command": "clipwire.history",
+        "title": "Show History",
+        "category": "Clipwire"
+      },
+      {
+        "command": "clipwire.clearHistory",
+        "title": "Clear Channel History",
+        "category": "Clipwire"
+      },
+      {
+        "command": "clipwire.showFingerprint",
+        "title": "Show Channel Fingerprint",
+        "category": "Clipwire"
+      },
+      {
+        "command": "clipwire.setRelayUrl",
+        "title": "Set Relay URL",
+        "category": "Clipwire"
+      },
+      {
+        "command": "clipwire.testConnection",
+        "title": "Test Connection",
+        "category": "Clipwire"
+      }
     ],
-    "submenus": [{ "id": "clipwire.menu", "label": "Clipwire" }],
+    "submenus": [
+      {
+        "id": "clipwire.menu",
+        "label": "Clipwire"
+      }
+    ],
     "menus": {
-      "editor/context": [{ "submenu": "clipwire.menu", "group": "9_cutcopypaste@100" }],
+      "editor/context": [
+        {
+          "submenu": "clipwire.menu",
+          "group": "9_cutcopypaste@100"
+        }
+      ],
       "clipwire.menu": [
-        { "command": "clipwire.sendSelection", "when": "editorHasSelection", "group": "1_send@1" },
-        { "command": "clipwire.sendClipboard", "group": "1_send@2" },
-        { "command": "clipwire.insertLatest", "group": "2_receive@1" },
-        { "command": "clipwire.copyLatest", "group": "2_receive@2" }
+        {
+          "command": "clipwire.sendSelection",
+          "when": "editorHasSelection",
+          "group": "1_send@1"
+        },
+        {
+          "command": "clipwire.sendClipboard",
+          "group": "1_send@2"
+        },
+        {
+          "command": "clipwire.insertLatest",
+          "group": "2_receive@1"
+        },
+        {
+          "command": "clipwire.copyLatest",
+          "group": "2_receive@2"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "clipwire.showHistory",
+          "when": "view == clipwire.panel",
+          "group": "navigation"
+        }
       ]
     },
     "configuration": {
@@ -49,12 +147,12 @@
         "clipwire.relayUrl": {
           "type": "string",
           "default": "https://copyme-relay.aravindbaranitharan.in",
-          "markdownDescription": "Base URL of the CopyMe relay. Must be **https** outside localhost — the extension refuses plaintext http so a channel token cannot cross the network in the clear."
+          "markdownDescription": "Base URL of the CopyMe relay. Must be **https** outside localhost \u2014 the extension refuses plaintext http so a channel token cannot cross the network in the clear."
         },
         "clipwire.warnOnSecrets": {
           "type": "boolean",
           "default": true,
-          "markdownDescription": "Ask before sending text that looks like a credential — private keys, cloud access keys, tokens or `.env` assignments. Detection is a heuristic, not a guarantee."
+          "markdownDescription": "Ask before sending text that looks like a credential \u2014 private keys, cloud access keys, tokens or `.env` assignments. Detection is a heuristic, not a guarantee."
         },
         "clipwire.confirmLargeSends": {
           "type": "number",
@@ -62,6 +160,24 @@
           "markdownDescription": "Ask before sending text longer than this many characters. Set to `0` to never ask."
         }
       }
+    },
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "clipwire",
+          "title": "Clipwire",
+          "icon": "media/clipwire.svg"
+        }
+      ]
+    },
+    "views": {
+      "clipwire": [
+        {
+          "id": "clipwire.panel",
+          "name": "Clipwire",
+          "type": "webview"
+        }
+      ]
     }
   },
   "scripts": {

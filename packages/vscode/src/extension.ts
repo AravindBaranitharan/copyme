@@ -30,6 +30,7 @@ import {
   newDeviceId,
 } from "../../protocol/src/crypto.js";
 import { findSecrets } from "./secrets";
+import { ClipwirePanel, type PanelApi, type PanelEntry } from "./panel";
 
 interface Channel {
   secret: string;
@@ -239,17 +240,82 @@ const preview = (text: string, max = 64) => {
 
 /* ------------------------------------------------------------- activation */
 
+let afterCommand: () => void = () => {};
+
 function register(context: vscode.ExtensionContext, id: string, handler: () => Promise<void>) {
   context.subscriptions.push(
     vscode.commands.registerCommand(id, async () => {
       try {
         await handler();
+        afterCommand();
       } catch (err) {
         // Errors are surfaced, never logged — a message could carry a token.
         vscode.window.showErrorMessage(`Clipwire: ${err instanceof Error ? err.message : String(err)}`);
       }
     }),
   );
+}
+
+/** Everything the sidebar may ask for, refusing anything the commands would refuse. */
+function panelApi(context: vscode.ExtensionContext): PanelApi {
+  return {
+    fingerprint: () => channel?.fingerprint ?? null,
+
+    async connect(channelId: string) {
+      const problem = validateChannelKey(channelId);
+      if (problem) throw new Error(problem);
+      channel = await channelFromKey(channelId);
+      await context.secrets.store(SECRET_KEY, JSON.stringify(toStored(channel)));
+      paint();
+    },
+
+    async disconnect() {
+      await context.secrets.delete(SECRET_KEY);
+      channel = null;
+      paint();
+    },
+
+    async send(text: string) {
+      await send(text, "text");
+    },
+
+    async list(): Promise<PanelEntry[]> {
+      const active = await requireChannel();
+      const out: PanelEntry[] = [];
+      for (const entry of (await entries()).slice(0, 30)) {
+        try {
+          const text = await decryptEntry(entry, active);
+          out.push({
+            seq: entry.seq,
+            mine: entry.deviceId === deviceId,
+            time: new Date(entry.createdAt).toLocaleTimeString(),
+            chars: text.length,
+            text,
+          });
+        } catch {
+          continue;
+        }
+      }
+      return out;
+    },
+
+    async clear() {
+      const active = await requireChannel();
+      const choice = await vscode.window.showWarningMessage(
+        `Erase every entry in channel ${active.fingerprint}?`,
+        { modal: true, detail: "This clears it for every device on the channel and cannot be undone." },
+        "Erase",
+      );
+      if (choice !== "Erase") return;
+      await call("", { method: "DELETE" });
+    },
+
+    insert,
+
+    async copy(text: string) {
+      await vscode.env.clipboard.writeText(text);
+    },
+  };
 }
 
 export async function activate(context: vscode.ExtensionContext) {
@@ -268,6 +334,16 @@ export async function activate(context: vscode.ExtensionContext) {
     }
   }
   paint();
+
+  const panel = new ClipwirePanel(context.extensionUri, panelApi(context));
+  context.subscriptions.push(
+    vscode.window.registerWebviewViewProvider(ClipwirePanel.viewId, panel, {
+      webviewOptions: { retainContextWhenHidden: true },
+    }),
+  );
+  // Commands and the sidebar act on the same state, so either must refresh both.
+  const sync = () => { void panel.refresh(); };
+  afterCommand = sync;
 
   register(context, "clipwire.connect", async () => {
     const id = await vscode.window.showInputBox({
