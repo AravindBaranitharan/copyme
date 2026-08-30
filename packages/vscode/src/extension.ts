@@ -1,5 +1,5 @@
 /**
- * Meow — an encrypted clipboard between your machines.
+ * Clipwire — an encrypted clipboard between your machines.
  *
  * Security posture, in one place so it can be checked:
  *
@@ -50,8 +50,8 @@ interface Entry {
   createdAt: number;
 }
 
-const SECRET_KEY = "meow.channel.v1";
-const DEVICE_KEY = "meow.device.v1";
+const SECRET_KEY = "clipwire.channel.v1";
+const DEVICE_KEY = "clipwire.device.v1";
 const REQUEST_TIMEOUT_MS = 30_000;
 
 let channel: Channel | null = null;
@@ -66,7 +66,7 @@ let status: vscode.StatusBarItem;
  */
 function relayUrl(): string {
   const raw = vscode.workspace
-    .getConfiguration("meow")
+    .getConfiguration("clipwire")
     .get<string>("relayUrl", "https://copyme-relay.aravindbaranitharan.in")
     .trim()
     .replace(/\/+$/, "");
@@ -85,7 +85,7 @@ function relayUrl(): string {
 }
 
 async function call<T>(path: string, init: RequestInit = {}): Promise<T | null> {
-  if (!channel) throw new Error('Not connected. Run "Meow: Connect to a Channel".');
+  if (!channel) throw new Error('Not connected. Run "Clipwire: Connect to a Channel".');
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
@@ -124,23 +124,23 @@ async function call<T>(path: string, init: RequestInit = {}): Promise<T | null> 
 function paint() {
   if (!status) return;
   if (channel) {
-    status.text = `$(clippy) Meow ${channel.fingerprint}`;
+    status.text = `$(clippy) Clipwire ${channel.fingerprint}`;
     status.tooltip = new vscode.MarkdownString(
       `Connected to channel \`${channel.fingerprint}\`.\n\n` +
         "This fingerprint is derived one way from your channel id. " +
         "It should read identically on your other machine.",
     );
-    status.command = "meow.history";
+    status.command = "clipwire.history";
   } else {
-    status.text = "$(clippy) Meow";
+    status.text = "$(clippy) Clipwire";
     status.tooltip = "Not connected. Click to connect.";
-    status.command = "meow.connect";
+    status.command = "clipwire.connect";
   }
   status.show();
 }
 
 async function requireChannel(): Promise<Channel> {
-  if (!channel) throw new Error('Not connected. Run "Meow: Connect to a Channel".');
+  if (!channel) throw new Error('Not connected. Run "Clipwire: Connect to a Channel".');
   return channel;
 }
 
@@ -151,7 +151,7 @@ async function requireChannel(): Promise<Channel> {
  * unusually large. Returns false when the user backs out.
  */
 async function confirmSend(text: string): Promise<boolean> {
-  const config = vscode.workspace.getConfiguration("meow");
+  const config = vscode.workspace.getConfiguration("clipwire");
 
   if (config.get<boolean>("warnOnSecrets", true)) {
     const hits = findSecrets(text);
@@ -179,14 +179,14 @@ async function confirmSend(text: string): Promise<boolean> {
 
 async function send(text: string, what: string) {
   if (!text.trim()) {
-    vscode.window.showWarningMessage(`Meow: no ${what} to send.`);
+    vscode.window.showWarningMessage(`Clipwire: no ${what} to send.`);
     return;
   }
   const active = await requireChannel();
   if (!(await confirmSend(text))) return;
 
   await vscode.window.withProgress(
-    { location: vscode.ProgressLocation.Window, title: "Meow: sending…" },
+    { location: vscode.ProgressLocation.Window, title: "Clipwire: sending…" },
     async () => {
       await call("/entries", {
         method: "POST",
@@ -194,7 +194,7 @@ async function send(text: string, what: string) {
       });
     },
   );
-  vscode.window.setStatusBarMessage(`Meow: sent ${text.length.toLocaleString()} characters`, 2500);
+  vscode.window.setStatusBarMessage(`Clipwire: sent ${text.length.toLocaleString()} characters`, 2500);
 }
 
 /* ---------------------------------------------------------------- receive */
@@ -223,7 +223,7 @@ async function insert(text: string) {
   const editor = vscode.window.activeTextEditor;
   if (!editor) {
     await vscode.env.clipboard.writeText(text);
-    vscode.window.showInformationMessage("Meow: no editor open — copied to the clipboard instead.");
+    vscode.window.showInformationMessage("Clipwire: no editor open — copied to the clipboard instead.");
     return;
   }
   await editor.edit((builder) => {
@@ -246,7 +246,7 @@ function register(context: vscode.ExtensionContext, id: string, handler: () => P
         await handler();
       } catch (err) {
         // Errors are surfaced, never logged — a message could carry a token.
-        vscode.window.showErrorMessage(`Meow: ${err instanceof Error ? err.message : String(err)}`);
+        vscode.window.showErrorMessage(`Clipwire: ${err instanceof Error ? err.message : String(err)}`);
       }
     }),
   );
@@ -269,9 +269,9 @@ export async function activate(context: vscode.ExtensionContext) {
   }
   paint();
 
-  register(context, "meow.connect", async () => {
+  register(context, "clipwire.connect", async () => {
     const id = await vscode.window.showInputBox({
-      title: "Meow: connect to a channel",
+      title: "Clipwire: connect to a channel",
       prompt: "Enter the same channel id on both machines. It is also the password.",
       password: true,
       ignoreFocusOut: true,
@@ -280,7 +280,7 @@ export async function activate(context: vscode.ExtensionContext) {
     if (!id) return;
 
     await vscode.window.withProgress(
-      { location: vscode.ProgressLocation.Notification, title: "Meow: deriving keys…" },
+      { location: vscode.ProgressLocation.Notification, title: "Clipwire: deriving keys…" },
       async () => {
         channel = await channelFromKey(id);
         await context.secrets.store(SECRET_KEY, JSON.stringify(toStored(channel)));
@@ -288,52 +288,52 @@ export async function activate(context: vscode.ExtensionContext) {
     );
     paint();
     vscode.window.showInformationMessage(
-      `Meow: connected. Fingerprint ${channel!.fingerprint} — it should match your other machine.`,
+      `Clipwire: connected. Fingerprint ${channel!.fingerprint} — it should match your other machine.`,
     );
   });
 
-  register(context, "meow.disconnect", async () => {
+  register(context, "clipwire.disconnect", async () => {
     await context.secrets.delete(SECRET_KEY);
     channel = null;
     paint();
-    vscode.window.showInformationMessage("Meow: disconnected from this machine.");
+    vscode.window.showInformationMessage("Clipwire: disconnected from this machine.");
   });
 
-  register(context, "meow.showFingerprint", async () => {
+  register(context, "clipwire.showFingerprint", async () => {
     const active = await requireChannel();
     vscode.window.showInformationMessage(
-      `Meow fingerprint: ${active.fingerprint}. Your other machine should show the same.`,
+      `Clipwire fingerprint: ${active.fingerprint}. Your other machine should show the same.`,
     );
   });
 
-  register(context, "meow.sendSelection", async () => {
+  register(context, "clipwire.sendSelection", async () => {
     const editor = vscode.window.activeTextEditor;
     if (!editor || editor.selection.isEmpty) {
-      vscode.window.showWarningMessage("Meow: select some text first.");
+      vscode.window.showWarningMessage("Clipwire: select some text first.");
       return;
     }
     await send(editor.document.getText(editor.selection), "selection");
   });
 
-  register(context, "meow.sendClipboard", async () => {
+  register(context, "clipwire.sendClipboard", async () => {
     await send(await vscode.env.clipboard.readText(), "clipboard text");
   });
 
-  register(context, "meow.copyLatest", async () => {
+  register(context, "clipwire.copyLatest", async () => {
     const text = await latestText();
     await vscode.env.clipboard.writeText(text);
-    vscode.window.setStatusBarMessage(`Meow: copied ${text.length.toLocaleString()} characters`, 2500);
+    vscode.window.setStatusBarMessage(`Clipwire: copied ${text.length.toLocaleString()} characters`, 2500);
   });
 
-  register(context, "meow.insertLatest", async () => {
+  register(context, "clipwire.insertLatest", async () => {
     await insert(await latestText());
   });
 
-  register(context, "meow.history", async () => {
+  register(context, "clipwire.history", async () => {
     const active = await requireChannel();
     const all = await entries();
     if (all.length === 0) {
-      vscode.window.showInformationMessage("Meow: this channel is empty.");
+      vscode.window.showInformationMessage("Clipwire: this channel is empty.");
       return;
     }
 
@@ -352,7 +352,7 @@ export async function activate(context: vscode.ExtensionContext) {
       }
     }
     if (items.length === 0) {
-      vscode.window.showWarningMessage("Meow: nothing here opens with this channel id.");
+      vscode.window.showWarningMessage("Clipwire: nothing here opens with this channel id.");
       return;
     }
 
@@ -370,13 +370,13 @@ export async function activate(context: vscode.ExtensionContext) {
 
     if (action.id === "copy") {
       await vscode.env.clipboard.writeText(picked.text);
-      vscode.window.setStatusBarMessage("Meow: copied", 2000);
+      vscode.window.setStatusBarMessage("Clipwire: copied", 2000);
     } else {
       await insert(picked.text);
     }
   });
 
-  register(context, "meow.clearHistory", async () => {
+  register(context, "clipwire.clearHistory", async () => {
     const active = await requireChannel();
     const choice = await vscode.window.showWarningMessage(
       `Erase every entry in channel ${active.fingerprint}?`,
@@ -385,13 +385,13 @@ export async function activate(context: vscode.ExtensionContext) {
     );
     if (choice !== "Erase") return;
     await call("", { method: "DELETE" });
-    vscode.window.showInformationMessage("Meow: channel history erased.");
+    vscode.window.showInformationMessage("Clipwire: channel history erased.");
   });
 
-  register(context, "meow.setRelayUrl", async () => {
-    const current = vscode.workspace.getConfiguration("meow").get<string>("relayUrl", "");
+  register(context, "clipwire.setRelayUrl", async () => {
+    const current = vscode.workspace.getConfiguration("clipwire").get<string>("relayUrl", "");
     const next = await vscode.window.showInputBox({
-      title: "Meow: relay URL",
+      title: "Clipwire: relay URL",
       value: current,
       ignoreFocusOut: true,
       prompt: "Must be https unless it is localhost.",
@@ -408,15 +408,15 @@ export async function activate(context: vscode.ExtensionContext) {
     });
     if (!next) return;
     await vscode.workspace
-      .getConfiguration("meow")
+      .getConfiguration("clipwire")
       .update("relayUrl", next.trim().replace(/\/+$/, ""), vscode.ConfigurationTarget.Global);
-    vscode.window.showInformationMessage("Meow: relay updated.");
+    vscode.window.showInformationMessage("Clipwire: relay updated.");
   });
 
-  register(context, "meow.testConnection", async () => {
+  register(context, "clipwire.testConnection", async () => {
     const base = relayUrl();
     await vscode.window.withProgress(
-      { location: vscode.ProgressLocation.Notification, title: "Meow: testing…" },
+      { location: vscode.ProgressLocation.Notification, title: "Clipwire: testing…" },
       async () => {
         const response = await fetch(`${base}/healthz`, { cache: "no-store", credentials: "omit" });
         if (!response.ok) throw new Error(`Relay answered ${response.status}.`);
@@ -424,7 +424,7 @@ export async function activate(context: vscode.ExtensionContext) {
         if (!body.ok) throw new Error("Relay answered, but not correctly.");
       },
     );
-    vscode.window.showInformationMessage(`Meow: relay is healthy at ${base}`);
+    vscode.window.showInformationMessage(`Clipwire: relay is healthy at ${base}`);
   });
 }
 
