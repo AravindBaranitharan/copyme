@@ -115,6 +115,9 @@ export class ClipwirePanel implements vscode.WebviewViewProvider {
       content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; script-src 'nonce-${nonce}';">
 <style>
   * { box-sizing: border-box; }
+  /* An author display rule beats the UA [hidden] rule, so .stack would keep
+     flexing while hidden and show both panes at once. */
+  [hidden] { display: none !important; }
   body {
     margin: 0; padding: 12px;
     font-family: var(--vscode-font-family);

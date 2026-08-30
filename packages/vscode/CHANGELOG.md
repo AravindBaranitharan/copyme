@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.1
+
+- The panel showed the connect form and the connected view at the same time.
+
 ## 0.2.0
 
 - A Clipwire panel in the Activity Bar: connect, send, and browse what has
