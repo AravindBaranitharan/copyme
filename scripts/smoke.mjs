@@ -66,8 +66,13 @@ await rejects("a tampered device id fails the AAD check", () =>
   decryptEntry({ ...entry, deviceId: newDeviceId() }, channel));
 await rejects("a rotated epoch cannot decrypt", () =>
   decryptEntry({ ...entry, epoch: 1 }, { ...channel, epoch: 1 }));
+// Substituting a fixed character is a coin flip: when the ciphertext already
+// starts with it, nothing changes and the decryption rightly succeeds. Pick a
+// replacement that differs from what is there.
+const flipped = (entry.ciphertext[0] === "A" ? "B" : "A") + entry.ciphertext.slice(1);
+check("the flip actually changed something", flipped !== entry.ciphertext);
 await rejects("flipped ciphertext fails the auth tag", () =>
-  decryptEntry({ ...entry, ciphertext: "A" + entry.ciphertext.slice(1) }, channel));
+  decryptEntry({ ...entry, ciphertext: flipped }, channel));
 
 console.log("\nchannel id pairing");
 
